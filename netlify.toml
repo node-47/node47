@@ -5,9 +5,8 @@
 # ==============================================================================
 
 [build]
-  # 1) Génère le client Prisma pour PostgreSQL (Supabase)
-  # 2) Compile le site Next.js
-  command = "npx prisma generate --schema=prisma/schema.postgres.prisma && npx next build"
+  # Compile le site ; Netlify applique les migrations de la base au déploiement.
+  command = "npx next build"
   publish = ".next"
 
 [build.environment]
