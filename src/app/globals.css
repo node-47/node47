@@ -1,0 +1,417 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-grotesk);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-surface-alt: var(--surface-alt);
+  --color-sport-football: var(--sport-football);
+  --color-sport-basketball: var(--sport-basketball);
+  --color-sport-tennis: var(--sport-tennis);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* =====================================================================
+   NODE.47 — Thème « Trader Intelligence »
+   Sombre (défaut) : bleu-noir #0A0E14 + vert marché #00C878
+   Clair : vert-grisé #F1F5F2 + vert profond #00834F
+   ===================================================================== */
+
+/* ===== Thème clair ===== */
+:root {
+  --radius: 0.75rem;
+  --background: #f1f5f2;
+  --foreground: #141b17;
+  --card: #ffffff;
+  --card-foreground: #141b17;
+  --popover: #ffffff;
+  --popover-foreground: #141b17;
+  --primary: #00834f;
+  --primary-foreground: #ffffff;
+  --secondary: #f6f9f7;
+  --secondary-foreground: #141b17;
+  --muted: #f6f9f7;
+  --muted-foreground: #5a685e;
+  --accent: rgba(0, 131, 79, 0.09);
+  --accent-foreground: #00834f;
+  --destructive: #c0362c;
+  --success: #00834f;
+  --warning: #a76400;
+  --border: #dde4df;
+  --input: #c9d4cc;
+  --ring: rgba(0, 131, 79, 0.35);
+  --chart-1: #00834f;
+  --chart-2: #a76400;
+  --chart-3: #c0362c;
+  --chart-4: #c2410c;
+  --chart-5: #55700a;
+  --sidebar: #f6f9f7;
+  --sidebar-foreground: #141b17;
+  --sidebar-primary: #00834f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(0, 131, 79, 0.09);
+  --sidebar-accent-foreground: #141b17;
+  --sidebar-border: #dde4df;
+  --sidebar-ring: rgba(0, 131, 79, 0.35);
+  /* Surfaces & effets */
+  --surface-alt: #f6f9f7;
+  --sport-football: #0e7a47;
+  --sport-basketball: #c2410c;
+  --sport-tennis: #55700a;
+  --accent-bd: rgba(0, 131, 79, 0.35);
+  --accent-glow: rgba(0, 131, 79, 0.18);
+  --gauge-glow: rgba(0, 131, 79, 0.28);
+  --hero-grid: rgba(20, 27, 23, 0.07);
+  --hero-side: rgba(70, 110, 90, 0.08);
+  --bg-glass: rgba(241, 245, 242, 0.9);
+  --overlay-shadow: rgba(24, 36, 30, 0.14);
+}
+
+/* ===== Thème sombre (défaut) ===== */
+.dark {
+  --background: #0a0e14;
+  --foreground: #e7ecf3;
+  --card: #121a24;
+  --card-foreground: #e7ecf3;
+  --popover: #121a24;
+  --popover-foreground: #e7ecf3;
+  --primary: #00c878;
+  --primary-foreground: #04140c;
+  --secondary: #0d1420;
+  --secondary-foreground: #e7ecf3;
+  --muted: #0d1420;
+  --muted-foreground: #8a95a6;
+  --accent: rgba(0, 200, 120, 0.12);
+  --accent-foreground: #00c878;
+  --destructive: #e5484d;
+  --success: #00c878;
+  --warning: #ffb020;
+  --border: #1f2a37;
+  --input: #2a3644;
+  --ring: rgba(0, 200, 120, 0.45);
+  --chart-1: #00c878;
+  --chart-2: #ffb020;
+  --chart-3: #e5484d;
+  --chart-4: #f97316;
+  --chart-5: #b8ce24;
+  --sidebar: #0d1420;
+  --sidebar-foreground: #e7ecf3;
+  --sidebar-primary: #00c878;
+  --sidebar-primary-foreground: #04140c;
+  --sidebar-accent: rgba(0, 200, 120, 0.12);
+  --sidebar-accent-foreground: #e7ecf3;
+  --sidebar-border: #1f2a37;
+  --sidebar-ring: rgba(0, 200, 120, 0.45);
+  /* Surfaces & effets */
+  --surface-alt: #0d1420;
+  --sport-football: #22b573;
+  --sport-basketball: #f97316;
+  --sport-tennis: #b8ce24;
+  --accent-bd: rgba(0, 200, 120, 0.45);
+  --accent-glow: rgba(0, 200, 120, 0.4);
+  --gauge-glow: rgba(0, 200, 120, 0.55);
+  --hero-grid: rgba(31, 42, 55, 0.55);
+  --hero-side: rgba(28, 60, 90, 0.22);
+  --bg-glass: rgba(10, 14, 20, 0.86);
+  --overlay-shadow: rgba(0, 0, 0, 0.4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: rgba(0, 200, 120, 0.22);
+  }
+  :root ::selection {
+    background: rgba(0, 131, 79, 0.18);
+  }
+}
+
+/* ===== Utilitaires typographiques ===== */
+
+.font-display {
+  font-family: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+}
+.font-mono {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* Titre héro avec lueur verte */
+.text-glow {
+  color: var(--primary);
+  text-shadow: 0 0 34px var(--accent-glow);
+}
+
+/* Fond héro : halos radiaux + grille technique masquée */
+.hero-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(700px 340px at 18% -10%, var(--accent-glow), transparent 65%),
+    radial-gradient(600px 300px at 90% 20%, var(--hero-side), transparent 70%);
+}
+.hero-fx::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--hero-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hero-grid) 1px, transparent 1px);
+  background-size: 54px 54px;
+  -webkit-mask-image: radial-gradient(700px 400px at 25% 0%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(700px 400px at 25% 0%, #000 0%, transparent 75%);
+}
+
+/* Carte : survol vert + léger soulèvement */
+.card-hover {
+  transition:
+    border-color 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.card-hover:hover {
+  border-color: var(--accent-bd);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px var(--overlay-shadow);
+}
+
+/* ===== Jauge de confiance (4 segments) ===== */
+.gauge {
+  display: inline-flex;
+  gap: 5px;
+}
+.gauge > span {
+  display: block;
+  width: 20px;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--border);
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
+}
+.gauge > span.lit {
+  background: var(--primary);
+  box-shadow: 0 0 9px var(--gauge-glow);
+}
+.gauge-gaps-sm {
+  gap: 4px;
+}
+.gauge-gaps-sm > span {
+  width: 16px;
+  height: 4px;
+}
+.gauge-big > span {
+  width: 44px;
+  height: 8px;
+  border-radius: 3px;
+}
+
+/* Pastille « en direct » avec anneau pulsé */
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: pulse-ring 2s infinite;
+  flex: none;
+}
+@keyframes pulse-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--gauge-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+/* ===== Ticker « Derniers verdicts » ===== */
+.ticker {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+  height: 38px;
+  overflow: hidden;
+}
+.ticker-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 18px;
+  font-family: var(--font-grotesk), sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--primary);
+  border-right: 1px solid var(--border);
+  height: 100%;
+  white-space: nowrap;
+  background: var(--background);
+  flex: none;
+}
+.ticker-view {
+  flex: 1;
+  overflow: hidden;
+}
+.tick-track {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: tick 42s linear infinite;
+  will-change: transform;
+}
+.ticker:hover .tick-track {
+  animation-play-state: paused;
+}
+@keyframes tick {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ===== Synthèse & condition (fiche) ===== */
+.synthese {
+  border-left: 2px solid var(--primary);
+  background: var(--accent);
+  border-radius: 0 9px 9px 0;
+}
+.cond-panel {
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+/* Liste d'engagements (À propos) */
+.nots {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+}
+.nots li {
+  display: flex;
+  gap: 14px;
+  padding: 15px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+.nots li::before {
+  content: "—";
+  color: var(--primary);
+  flex: none;
+  font-weight: 600;
+}
+
+/* ===== Scrollbar élégante ===== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* ===== Animation d'apparition ===== */
+.animate-rise {
+  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-rise-delay-1 {
+  animation: rise 0.55s 0.08s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-rise-delay-2 {
+  animation: rise 0.55s 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-rise-delay-3 {
+  animation: rise 0.55s 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pastille pulsée simple (badge en attente) */
+.pulse-dot {
+  animation: pulse-opacity 2s ease-in-out infinite;
+}
+@keyframes pulse-opacity {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Transition douce lors du changement de thème */
+html.theme-transition,
+html.theme-transition * {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease !important;
+}
