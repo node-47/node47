@@ -1,0 +1,75 @@
+**A. MATCH ET CONTEXTE**
+
+- **Match** : Alexander Zverev vs Alejandro Davidovich Fokina  
+- **Sport / compétition** : Tennis – ATP Masters 1000 Rolex Shanghai Masters, demi-finale, surface hard outdoor  
+- **Date et heure** : Samedi 17 octobre 2026 (autour de 08:30–10:30 locale / matin Europe selon fuseaux)  
+- **État des informations** : Actuelles (données post-quarts du 15-16 octobre, H2H, classements, formes et cotes de marché vérifiées le 17 octobre).  
+
+**B. SCÉNARIO SPORTIF**
+
+- **Joueur supérieur** : Alexander Zverev.  
+- **Raisons principales** : Supériorité structurelle en classement (n°2 / year-end n°1 assuré vs n°26), service dominant et puissance de fond de court adaptés à la surface rapide de Shanghai, H2H très favorable (6-1, 4-1 hard), capacité à dicter le rythme et à limiter les échanges longs.  
+- **Scénario attendu** : Zverev impose son service et son jeu agressif, convertit les opportunités de break, et l'emporte en 2 sets (ou 3 sets contrôlés) avec une marge de jeux.  
+- **Scénario alternatif** : Davidovich Fokina prolonge les échanges avec son jeu défensif et ses drop-shots, force un 3e set si l'ankle de Zverev limite la mobilité ou l'efficacité au service.  
+- **Facteurs susceptibles de modifier la lecture** : Ankle de Zverev (douleur qui augmente avec la durée et les rallies longs, confirmée après Bublik et mentionnée après de Minaur) ; fraîcheur relative de Davidovich Fokina (QF très court via abandon de Gea).  
+
+**C. CONVERGENCE DES PREUVES**
+
+- **Statistiques et données sportives** : H2H 6-1 pour Zverev (dernier 6-2 6-4 à Paris 2025 hard ; seule défaite Toronto 2023). Zverev clairement supérieur en aces, 1st serve win % et points gagnés derrière le service dans les confrontations.  
+- **Forme et contexte** : Zverev 2026 ~58-13 / 62-14-15 selon sources, 9/10 derniers, clean 6-4 6-4 vs de Minaur (QF). Davidovich Fokina 31-16, titres Chengdu + Mallorca 2026, 4 victoires Shanghai (dont Tiafoe, Hurkacz en 3 sets, puis abandon Gea). Surface hard favorise le service et la puissance de Zverev.  
+- **Disponibilité / blessures** : Zverev joue avec un ankle gênant (droit, historique 2022) qui s'aggrave en match long/rallies ; il a réussi à le gérer en raccourcissant les points vs de Minaur. Davidovich Fokina plus frais.  
+- **Modèles prédictifs** : Prévisions disponibles convergent vers Zverev (ex. ~77 % dans un modèle ML, « Zverev in 2 » sur TennisTonic). Elo surface et ratings structurels (Tennis Abstract / sources avancées) placent Zverev clairement au-dessus.  
+- **Marché et prix observés** : Zverev favori massif (cotes environ 1.25–1.29 / -350 à -385) ; handicap jeux -3.0 / -3.5 ; total jeux autour de 23 ; Zverev 2-0 sets ~ -120. Marché aligné avec le scénario de supériorité claire.  
+
+**Convergence nette** sur la supériorité de Zverev. Contradiction principale (et seule majeure) : le facteur physique ankle qui peut ouvrir la porte à un match plus long si Davidovich Fokina force les rallies.  
+
+**D. COMPARAISON DES MARCHÉS**
+
+Ordre de priorité tennis :  
+
+1. **Handicap jeux** (Zverev -3.0 / -3.5)  
+   - Compatibilité élevée avec le scénario de domination.  
+   - Argument : H2H et styles favorisent une marge de 3+ jeux.  
+   - Risque : match serré ou 3 sets si ankle limite Zverev.  
+
+2. **Over/Under jeux** (~23)  
+   - Compatibilité moyenne.  
+   - Argument : surface rapide + service Zverev = potentiel de sets courts ; total autour de 23 plausible.  
+   - Risque : 3e set ou tie-breaks font monter le total.  
+
+3. **Handicap sets** (Zverev -1.5)  
+   - Compatibilité bonne.  
+   - Argument : majorité des H2H en 2 sets.  
+   - Risque : scénario alternatif 3 sets.  
+
+4. **Vainqueur du match**  
+   - Compatibilité maximale avec le scénario principal.  
+   - Argument : le plus direct pour exprimer la supériorité.  
+   - Risque : cote courte, peu de marge d'erreur.  
+
+Les marchés trop agressifs (gros handicap ou totals extrêmes) sont écartés car l'ankle introduit une incertitude sur la marge exacte.  
+
+**E. MARCHÉ RETENU**
+
+- **Marché** : Vainqueur du match (ou, en second choix si ligne disponible et cohérente, handicap jeux Zverev -3.0).  
+- **Sélection** : Alexander Zverev.  
+- **Ligne si disponible** : Moneyline / Match Winner.  
+- **Cote observée** : environ 1.25–1.29 (-350 / -385) selon bookmakers (Bovada, DraftKings, etc.).  
+- **Pourquoi ce marché** : Il traduit le plus purement le scénario de supériorité technique, statistique et H2H de Zverev sans dépendre d'une marge de jeux précise que l'ankle pourrait réduire.  
+
+**F. VERDICT NODE.47**
+
+**JE JOUE — Alexander Zverev — Match Winner**  
+
+**Niveau de confiance** : MODÉRÉ à ÉLEVÉ.  
+
+**Raisons déterminantes** :  
+1. H2H 6-1 + dominance hard + service/puissance adaptés à Shanghai.  
+2. Convergence classements, forme 2026, modèles et marché.  
+3. Capacité démontrée à gérer l'ankle en raccourcissant les points (QF vs de Minaur).  
+
+**Principale limite** : Ankle de Zverev (douleur progressive) qui peut prolonger le match si Davidovich Fokina impose des rallies.  
+
+**G. SYNTHÈSE NODE.47**
+
+Alexander Zverev est supérieur pour son service, sa puissance de fond de court, le H2H 6-1 et son niveau structurel sur hard. Les statistiques, la forme récente, les modèles prédictifs et le marché convergent clairement vers sa victoire. Le marché qui traduit le mieux ce scénario est le vainqueur du match (Zverev). Ma décision est **JE JOUE**, parce que la supériorité sportive est robuste et que l'ankle, bien que réel, n'a pas empêché Zverev de produire un niveau élevé et contrôlé dans le QF.

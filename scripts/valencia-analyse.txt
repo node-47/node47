@@ -1,0 +1,76 @@
+**A. MATCH ET CONTEXTE**
+
+- Match : Valencia vs Athletic Bilbao  
+- Sport / compétition : Football / La Liga (Journée 9)  
+- Date et heure : Samedi 17 octobre 2026, environ 20h00-21h00 CEST (Mestalla)  
+- État des informations : Actuelles (préviews du 15-16 octobre, statistiques de saison à jour, cotes disponibles, absences confirmées).  
+
+**B. SCÉNARIO SPORTIF**
+
+- Équipe supérieure : Athletic Bilbao  
+- Raisons principales : Meilleure solidité défensive (6 buts encaissés en 6 matchs, parmi les meilleures de la ligue), qualité collective supérieure malgré absences, meilleure capacité à contrôler les matchs et à limiter les occasions adverses. Valencia est en grande difficulté offensive (6 buts en 8 matchs, xG faible) et n'a toujours pas gagné à domicile (0V-1N-3D, 2 buts marqués / 9 encaissés). Le changement d'entraîneur (Javier Aguirre) est trop récent pour transformer immédiatement les problèmes structurels.  
+- Scénario attendu : Match fermé, faible volume de buts. Athletic impose son organisation et sa solidité, limite Valencia, et cherche à gagner par la marge minimale ou à obtenir au moins un résultat positif.  
+- Scénario alternatif : Empate 0-0 ou 1-1 si Valencia parvient à rester compacte et si les absences offensives d'Athletic (Sancet, Nico Williams) freinent trop leur production.  
+- Facteurs susceptibles de modifier la lecture : Confirmation de la disponibilité de Laporte pour Athletic ; impact réel du nouveau coach Aguirre sur l'intensité et l'organisation de Valencia ; efficacité des coups de pied arrêtés.  
+
+**C. CONVERGENCE DES PREUVES**
+
+- Statistiques et données sportives : Valencia affiche un xG faible (~0,98-1,13 par match) et un xGA élevé (~1,5-1,8). Athletic produit davantage d'xG (~1,5-1,6) pour un xGA plus bas (~1,1-1,4) et conserve mieux. Valencia a échoué à marquer dans 50 % de ses matchs et encaissé beaucoup à domicile.  
+- Forme et contexte : Valencia 1V-2N-5D, dernière place. Athletic 2V-2N-2D, 10e, avec une dynamique plus stable et une défense plus fiable.  
+- Compositions / blessures : Valencia sans Sadiq (meilleur buteur), Canós et Diego López ; Rioja et Foulquier douteux. Athletic sans Sancet et Nico Williams ; Laporte en test de fitness. Les absences offensives d'Athletic sont importantes, mais leur structure défensive reste plus solide.  
+- Modèles prédictifs : Les prévisions accessibles (Sports Mole, The Stats Zone, Eurosport, etc.) convergent vers un match bas en buts (souvent 0-1 ou 1-1). Peu de modèles donnent une large domination.  
+- Confrontations tactiques : Athletic mieux armé pour contrôler le rythme et les transitions. Valencia en reconstruction sous Aguirre, avec des problèmes de conversion et de solidité.  
+- Marché et prix : Athletic est le léger favori (cotes 1X2 autour de 2,20-2,50 pour Athletic, 3,10-3,40 Valencia, 3,20-3,40 nul). Asian Handicap autour de Athletic -0,25. Totaux autour de 2,25/2,5 avec Under favorisé.  
+
+Convergence nette vers un scénario de match serré et bas en buts, avec un avantage structurel pour Athletic. Contradiction principale : les absences offensives d'Athletic limitent leur potentiel de domination nette.  
+
+**D. COMPARAISON DES MARCHÉS**
+
+1. **Asian Handicap**  
+   - Ligne typique : Athletic -0,25 / Valencia +0,25  
+   - Compatibilité : Bonne. Traduit l'avantage d'Athletic sans exiger une large marge.  
+   - Argument : Athletic est supérieur et plus solide ; la ligne protège partiellement en cas de nul.  
+   - Risque : Match très serré ou absence de but peut faire perdre la moitié de la mise.  
+
+2. **Over/Under**  
+   - Ligne typique : Under 2,5 ou Under 2,25  
+   - Compatibilité : Très bonne. Les deux équipes sont parmi les moins productives offensivement, Valencia très faible à domicile, Athletic défensivement solide.  
+   - Argument : Volume de buts attendu faible, styles et absences favorisent un match fermé.  
+   - Risque : Un match ouvert sous l'effet du nouveau coach ou d'une erreur individuelle.  
+
+3. **BTTS**  
+   - BTTS Non  
+   - Compatibilité : Correcte. Valencia marque peu, Athletic peut garder sa cage.  
+   - Argument : Faible capacité offensive de Valencia + solidité relative d'Athletic.  
+   - Risque : Athletic marque et Valencia trouve un coup de pied arrêté.  
+
+4. **1X2**  
+   - Athletic ou Double chance Athletic/Nul  
+   - Compatibilité : Moyenne. Athletic est favori mais la marge de victoire n'est pas claire.  
+   - Argument : Supériorité structurelle.  
+   - Risque : Empate très probable dans ce contexte.  
+
+Les marchés les plus cohérents avec le scénario sont l'Under et l'AH Athletic léger. Le 1X2 pur est moins précis car le match peut facilement finir nul.  
+
+**E. MARCHÉ RETENU**
+
+- Marché : Under (total de buts)  
+- Sélection : Under 2,5  
+- Ligne si disponible : Under 2,5 (ou Under 2,25 si disponible et mieux cotée)  
+- Cote observée : Autour de 1,70-1,85 selon bookmakers (Under 2,5) ; N/D pour certaines lignes précises asiatiques.  
+- Pourquoi ce marché : Il traduit directement le scénario principal (match fermé, faible production offensive des deux côtés, solidité défensive d'Athletic, difficultés de Valencia à marquer). Il est moins exposé au risque de nul ou de marge minimale qu'un handicap trop ambitieux.  
+
+**F. VERDICT NODE.47**
+
+**JE JOUE — Under 2,5**
+
+- Niveau de confiance : **MODÉRÉ**  
+- Raisons déterminantes :  
+  1. Valencia très faible offensivement et à domicile (0 victoire, 2 buts marqués en 4 matchs).  
+  2. Athletic parmi les défenses les plus solides de la ligue, même avec absences offensives.  
+  3. Convergence des données xG, forme et prévisions vers un match bas en buts.  
+- Principale limite : Absences offensives d'Athletic (Sancet + Nico Williams) et effet possible du nouveau coach Aguirre sur l'intensité de Valencia.  
+
+**G. SYNTHÈSE NODE.47**
+
+Athletic Bilbao est supérieur par sa solidité défensive, son organisation et sa qualité collective globale, malgré des absences offensives. Valencia souffre d'un manque de production et n'a pas encore trouvé de solutions à domicile sous le nouvel entraîneur. Les statistiques (xG, buts, forme), les informations sportives et le marché convergent vers un match fermé et bas en buts. Le marché qui traduit le mieux ce scénario est Under 2,5. Ma décision est **JE JOUE Under 2,5**, parce que c'est l'expression la plus directe et la plus soutenue par les preuves disponibles d'un scénario de faible volume de buts.

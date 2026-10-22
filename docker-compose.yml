@@ -1,0 +1,46 @@
+# ==============================================================================
+# NODE.47 — orchestration production VPS
+#
+# Usage :
+#   cp .env.example .env   puis renseigner .env (ADMIN_PASSWORD, ADMIN_SECRET…)
+#   docker compose up -d --build
+#   docker compose logs -f
+# ==============================================================================
+
+services:
+  node47:
+    build:
+      context: .
+      args:
+        # Inliné côté client au build — mettre à jour si l'URL publique change
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    image: node47:latest
+    container_name: node47
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000" # exposition derrière un reverse proxy (nginx/Caddy)
+    env_file:
+      - .env
+    environment:
+      # La base vit TOUJOURS sur le volume monté — écrase la valeur du .env hôte
+      DATABASE_URL: file:/app/db/custom.db
+      NODE_ENV: production
+    volumes:
+      - ./db:/app/db # persistance SQLite hors du conteneur
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

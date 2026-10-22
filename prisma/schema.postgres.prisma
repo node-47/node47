@@ -1,0 +1,58 @@
+// Schéma pour la MISE EN LIGNE (Netlify + Supabase) — base PostgreSQL.
+// Le schéma local (schema.prisma) reste en SQLite pour le développement.
+//
+// Les deux schémas décrivent EXACTEMENT les mêmes données.
+// Ne modifier un modèle QUE dans les deux fichiers à la fois.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum-like constants (stockées en texte, identiques à SQLite) :
+// sport      : FOOTBALL | BASKETBALL | TENNIS
+// verdict    : JE_JOUE | JE_JOUE_SOUS_CONDITION
+// confidence : FAIBLE | MODERE | ELEVE | TRES_ELEVE
+// status     : DRAFT | PUBLISHED
+// result     : PENDING | WON | LOST | PUSH | VOID
+
+model Pick {
+  id                  String    @id @default(cuid())
+  sport               String
+  competition         String
+  matchName           String
+  matchDate           DateTime
+  // Analyse (visible côté public sous forme de résumés uniquement)
+  scenarioSummary     String    @default("")
+  keyPoints           String    @default("[]") // JSON string[] — arguments clés de convergence
+  keyStats            String    @default("[]") // JSON {label, value, detail?}[]
+  alternativeScenario String?
+  // Décision
+  market              String    @default("")
+  selection           String    @default("")
+  line                String?
+  odds                Float?
+  verdict             String    @default("JE_JOUE")
+  confidence          String    @default("MODERE")
+  condition           String?
+  synthesis           String    @default("")
+  // Cycle de vie
+  status              String    @default("DRAFT")
+  result              String    @default("PENDING")
+  resultNote          String?
+  settledAt           DateTime?
+  publishedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+// Inscriptions newsletter (formulaire de la page d'accueil)
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}

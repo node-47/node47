@@ -1,0 +1,72 @@
+NODE.47 — Code source
+=====================
+
+Stack : Next.js 16 (App Router) + TypeScript + Tailwind CSS + shadcn/ui
+        + Prisma (SQLite) + Bun
+
+DÉMARRAGE RAPIDE
+----------------
+1) Installer les dépendances :
+     bun install
+
+2) Générer le client Prisma :
+     bunx prisma generate
+
+3) Configurer la base — créer/adapter le fichier .env :
+     DATABASE_URL=file:<chemin absolu du projet>/db/custom.db
+
+   (le fichier db/custom.db fourni contient les 10 analyses existantes ;
+    utilisez un chemin absolu pour éviter toute ambiguïté)
+
+4) Lancer :
+     bun run dev                      -> développement sur http://localhost:3000
+     bun run build && bun run start   -> production
+
+CONSOLE ANALYSTE
+----------------
+- Accès par URL directe : /admin  (aucun lien public, /admin exclu de
+  l'indexation via robots.txt)
+- Mot de passe par défaut : NODE47-admin2024 (à changer avant publication)
+- Import intelligent : dans le formulaire d'analyse, bloc « Importer une
+  analyse » — coller l'analyse complète (sections A à G) OU charger un
+  fichier .txt/.md ; le formulaire se pré-remplit (compétition, match, date,
+  marché, sélection, cote, confiance, points clés, synthèse). La saisie
+  manuelle reste toujours possible champ par champ.
+
+AVANT PUBLICATION — variables d'environnement à définir :
+     ADMIN_PASSWORD=<votre mot de passe analyste>
+     ADMIN_SECRET=<une phrase secrète aléatoire (signature de session)>
+     DATABASE_URL=file:<chemin absolu>/db/custom.db
+     NEXT_PUBLIC_SITE_URL=https://<votre-domaine>
+     (URL canonique : référencée par les balises Open Graph/Twitter,
+      le sitemap.xml et le robots.txt — la définir AVANT le build de production)
+
+SEO & PARTAGE
+-------------
+- Open Graph : image de marque 1200×630 auto + image dynamique par fiche
+  (affiche, marché, verdict, confiance)
+- /sitemap.xml : 4 pages statiques + toutes les fiches publiées
+- /robots.txt : généré par l'app (src/app/robots.ts), ligne Sitemap incluse,
+  /admin et /api exclus de l'indexation
+- Badge de compétition sur chaque carte (Ligue 1, LaLiga, NBA, EuroLeague,
+  ATP Masters 1000, WTA 1000…) — extrait automatiquement de l'analyse
+- Navigation « Analyse précédente / suivante » en bas de chaque fiche
+- Compte à rebours de la prochaine édition (8 h UTC) sous chaque fiche
+- /api/health : point de contrôle de santé (utilisé par le healthcheck Docker)
+
+BASE DE DONNÉES
+---------------
+- Schéma : prisma/schema.prisma
+- Après modification du schéma :
+     bunx prisma generate && bun run db:push
+- Réinitialiser avec les analyses d'exemple :
+     bun run scripts/seed.ts
+
+DÉPLOIEMENT
+-----------
+Deux guides complets à la racine du projet :
+- DEPLOY-VPS.md    → VPS avec Docker (option recommandée : SQLite persistant
+                     sur volume, reverse proxy HTTPS Caddy ou nginx, sauvegardes)
+- DEPLOY-VERCEL.md → Vercel (nécessite la migration SQLite → Turso/libSQL,
+                     procédure pas à pas incluse)
+- .env.example : modèle de variables d'environnement de production

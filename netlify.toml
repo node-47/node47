@@ -1,0 +1,19 @@
+# ==============================================================================
+# NODE.47 — configuration de déploiement Netlify
+# Ce fichier est lu automatiquement par Netlify lors du déploiement.
+# Ne rien modifier sans besoin.
+# ==============================================================================
+
+[build]
+  # 1) Génère le client Prisma pour PostgreSQL (Supabase)
+  # 2) Compile le site Next.js
+  command = "npx prisma generate --schema=prisma/schema.postgres.prisma && npx next build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Les variables secrètes (DATABASE_URL, ADMIN_PASSWORD, ADMIN_SECRET,
+# NEXT_PUBLIC_SITE_URL) ne se mettent PAS ici.
+# Elles se renseignent dans le tableau de bord Netlify :
+# Site configuration → Environment variables → Add a variable.
