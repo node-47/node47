@@ -1,0 +1,570 @@
+    33→   940→     %, volumes avec unité… Les puces marché/cotes sont écartées (leurs
+    34→   941→     valeurs alimentent les champs E). Une puce SANS statistique lisible
+    35→   942→     devient un POINT CLÉ de décision (blessures, modèles, tactique…)
+    36→   943→     au lieu d'être perdue. Un paragraphe libre de C devient la phrase
+    37→   944→     « Convergence : » du résumé. */
+    38→   945→  const cBullets = bulletsOf("C");
+    39→   946→  const statAcc: KeyStatItem[] = [];
+    40→   947→  const seenStats = new Set<string>();
+    41→   948→  let cLead = "";
+    42→   949→  let statBulletSkipped = 0;
+    43→   950→  if (hasSections) {
+    44→   951→    // Paragraphe de convergence NON à puces (synthèse libre de la section C)
+    45→   952→    const leadParts = sec("C")
+    46→   953→      .split("\n")
+    47→   954→      .map((l) => l.trim())
+    48→   955→      .filter((l) => l && !/^\s*[•‣▪◦*\-–—]/.test(l) && !LABEL_LINE_RE.test(l) && l.length > 40);
+    49→   956→    if (leadParts.length) cLead = leadParts.join(" ").replace(/\s+/g, " ").trim();
+    50→   957→
+    51→   958→    for (const b of cBullets) {
+    52→   959→      const lab = normLabel(b.label);
+    53→   960→      const bodyFlat = b.body.replace(/\s+/g, " ").trim();
+    54→   961→      const hay = stripAccents(`${b.label} ${bodyFlat}`).toLowerCase();
+    55→   962→      const isStatBullet = /^statistiques?/.test(lab);
+    56→   963→      if (MARKETISH_RE.test(hay)) continue; // marché/cotes → champs E
+    57→   964→      if (bodyFlat) {
+    58→   965→        const { stats, skipped } = parseKeyStats(bodyFlat);
+    59→   966→        if (isStatBullet) statBulletSkipped = skipped;
+    60→   967→        let added = 0;
+    61→   968→        for (const s of stats) {
+    62→   969→          const key = `${stripAccents(s.label).toLowerCase()}|${s.value}`;
+    63→   970→          if (seenStats.has(key)) continue;
+    64→   971→          seenStats.add(key);
+    65→   972→          if (statAcc.length < MAX_POINTS) {
+    66→   973→            statAcc.push(s);
+    67→   974→            added++;
+    68→   975→          }
+    69→   976→        }
+    70→   977→        if (added > 0) continue; // la puce vit dans la grille de stats
+    71→   978→      }
+    72→   979→      // Pas de statistique lisible → point clé de décision (une idée/puce)
+    73→   980→      if (bodyFlat.replace(/\W/g, "").length >= 30) {
+    74→   981→        const head = b.label ? `${b.label} : ` : "";
+    75→   982→        keyPointItems.push(`${head}${firstSentences(bodyFlat, 280, 2)}`.trim());
+    76→   983→      }
+    77→   984→    }
+    78→   985→    if (statAcc.length) {
+    79→   986→      values.keyStats = statAcc;
+    80→   987→      filled.push(`statistiques clés (${statAcc.length})`);
+    81→   988→      if (statBulletSkipped > 0) {
+    82→   989→        warnings.push(
+    83→   990→          `statistiques partielles (${statBulletSkipped} fragment(s) non décodé(s)) — vérifiez la section C`
+    84→   991→        );
+    85→   992→      }
+    86→   993→    } else if (statBulletSkipped > 0) {
+    87→   994→      warnings.push("statistiques non décodées — section C à saisir à la main");
+    88→   995→    }
+    89→   996→  }
+    90→   997→
+    91→   998→  /* ---- D. Comparaison des marchés ----
+    92→   999→     Détaillée dans les champs et points clés ; volontairement absente du
+    93→  1000→     résumé (sinon le « résumé » retrouve la longueur du texte collé). */
+    94→  1001→
+    95→  1002→  /* ---- Assemblage du scénario principal (un VRAI résumé) ----
+    96→  1003→     Sections reconnues : contexte + équipe supérieure + scénario attendu +
+    97→  1004→     premières raisons + convergence — condensé, coupé en fin de phrase.
+    98→  1005→     La comparaison des marchés (D) et le détail des puces de C restent
+    99→  1006→     hors résumé : ils vivent déjà dans les champs, les stats et les
+   100→  1007→     points clés. Sans sections (collage plat) : narration = tout SAUF
+   101→  1008→     les lignes « Label : valeur » de champs (déjà versées dans le
+   102→  1009→     formulaire) et la ligne d'affiche (déjà dans matchName), condensée
+   103→  1010→     si elle déborde. */
+   104→  1011→  const vsLineRe = /^[A-Za-zÀ-ÿ0-9.'\'\- ]{3,48}\s+vs\.?\s+[A-Za-zÀ-ÿ0-9.'\'\- ]{3,48}\s*$/;
+   105→  1012→  if (!hasSections) {
+   106→  1013→    const fieldLabelsNoNarr = FLAT_LABELS.filter((l) => l !== "equipe superieure");
+   107→  1014→    const fieldLineRe = new RegExp(
+   108→  1015→      `^(?:[-–—•*]\\s*)?(?:${fieldLabelsNoNarr.map((l) => accentPat(l).replace(/ /g, "\\s+")).join("|")})\\s*[:\\-–—]`,
+   109→  1016→      "i"
+   110→  1017→    );
+   111→  1018→    const narrative = cleanText(raw)
+   112→  1019→      .split("\n")
+   113→  1020→      .map((l) => stripInline(l).trim())
+   114→  1021→      .filter(Boolean)
+   115→  1022→      .filter((l) => !fieldLineRe.test(l))
+   116→  1023→      .filter((l) => !vsLineRe.test(l))
+   117→  1024→      // Titres d'analyse et lignes purement date/heure : ni scénario, ni prose.
+   118→  1025→      .filter((l) => !/^(?:analyse|node\.?\s*47)\b/i.test(l))
+   119→  1026→      .filter((l) => !(l.length <= 60 && DATE_LINE_RE.test(l)));
+   120→  1027→    if (narrative.length) {
+   121→  1028→      const full = narrative.join("\n");
+   122→  1029→      values.scenarioSummary = truncateAtSentence(full, SUMMARY_TARGET);
+   123→  1030→      if (values.scenarioSummary.length < full.length) {
+   124→  1031→        warnings.push("scénario condensé à l'essentiel — le texte intégral n'est pas conservé");
+   125→  1032→      }
+   126→  1033→      filled.push("scénario sportif");
+   127→  1034→
+   128→  1035→      /* Points clés de décision en collage plat : les phrases qui portent
+   129→  1036→         une justification (forme, absences, convergence, styles…). */
+   130→  1037→      const kwRe =
+   131→  1038→        /(car\b|parce\b|gr[âa]ce\b|raison|facteur|forme|absence|converge|d[ée]cisif|cl[ée]\b|avantage|manque|solide|faible|domine|sup[ée]rieur|ferm[ée]|ouvert|offensif|d[ée]fensif|buts?\b|xg\b|statistique)/i;
+   132→  1039→      const sentences = splitSentences(narrative.join(" "));
+   133→  1040→      let pts = sentences.filter(
+   134→  1041→        (s) => s.length >= 30 && s.length <= 300 && kwRe.test(stripAccents(s))
+   135→  1042→      );
+   136→  1043→      if (!pts.length) pts = sentences.filter((s) => s.length >= 30).slice(0, 3);
+   137→  1044→      keyPointItems.push(...dedupeItems(pts).slice(0, 6));
+   138→  1045→
+   139→  1046→      /* Statistiques en collage plat : détectées sur la narration (les
+   140→  1047→         lignes de champs — cote, marché… — sont exclues d'office). */
+   141→  1048→      if (!values.keyStats?.length) {
+   142→  1049→        const statSource = narrative
+   143→  1050→          .filter((l) => !MARKETISH_RE.test(stripAccents(l)))
+   144→  1051→          .join(" ");
+   145→  1052→        const { stats } = parseKeyStats(statSource);
+   146→  1053→        if (stats.length) {
+   147→  1054→          values.keyStats = stats.slice(0, 8);
+   148→  1055→          filled.push(`statistiques clés (${values.keyStats.length})`);
+   149→  1056→          warnings.push("statistiques déduites du texte — vérifiez-les");
+   150→  1057→        }
+   151→  1058→      }
+   152→  1059→    }
+   153→  1060→  } else {
+   154→  1061→    const scenChunks: string[] = [];
+   155→  1062→    if (contextLine) scenChunks.push(contextLine);
+   156→  1063→    if (supLine) scenChunks.push(supLine);
+   157→  1064→    if (attenduLine) scenChunks.push(attenduLine);
+   158→  1065→    if (raisonsLine) scenChunks.push(`Raisons : ${raisonsLine}`);
+   159→  1066→    for (const sub of bSubReasons) scenChunks.push(sub);
+   160→  1067→    for (const extra of extraBLines) scenChunks.push(extra);
+   161→  1068→    if (cLead) scenChunks.push(`Convergence : ${firstSentences(cLead, 260, 1)}`);
+   162→  1069→    const summary = scenChunks.join("\n").trim();
+   163→  1070→    if (summary) {
+   164→  1071→      values.scenarioSummary = truncateAtSentence(summary, SUMMARY_TARGET);
+   165→  1072→      if (values.scenarioSummary.length < summary.length) {
+   166→  1073→        warnings.push("scénario condensé à l'essentiel — le texte intégral n'est pas conservé");
+   167→  1074→      }
+   168→  1075→      filled.push("scénario sportif");
+   169→  1076→    }
+   170→  1077→  }
+   171→  1078→
+   172→  1079→  /* ---- E. Marché retenu ---- */
+   173→  1080→  const eBullets = bulletsOf("E");
+   174→  1081→  if (eBullets.length) {
+   175→  1082→    const marketB = findBullet(eBullets, /^(marche|market|marche\s+retenu|pari\s+retenu)\b/);
+   176→  1083→    if (marketB?.body) {
+   177→  1084→      let mk = marketB.body.replace(/\s+/g, " ").trim();
+   178→  1085→      mk = mk.split(/\s+\(ou\b/i)[0].trim(); // retire le second choix éventuel
+   179→  1086→      mk = mk.replace(/[;.。]+\s*$/, "").trim();
+   180→  1087→      values.market = mk.slice(0, 120);
+   181→  1088→      filled.push("marché");
+   182→  1089→    }
+   183→  1090→    const selB = findBullet(eBullets, /^(selection|pronostic|pari|choix|pick|pronostic\s+retenu)\b/);
+   184→  1091→    if (selB?.body) {
+   185→  1092→      values.selection = selB.body
+   186→  1093→        .replace(/\s+/g, " ")
+   187→  1094→        .trim()
+   188→  1095→        .replace(/[;.。]+\s*$/, "")
+   189→  1096→        .slice(0, 120);
+   190→  1097→      filled.push("sélection");
+   191→  1098→    }
+   192→  1099→    const lineB = findBullet(eBullets, /^ligne\b/);
+   193→  1100→    if (lineB?.body) {
+   194→  1101→      // Nombre signé en tête (« -0,5 ») ou, à défaut, premier nombre isolé
+   195→  1102→      // dans la valeur (« Under 2,5 (ou Under 2,25…) » → « 2,5 »).
+   196→  1103→      const lm = lineB.body.match(/^\s*([+\-−–—]?\s?\d+(?:[.,]\d+)?)/);
+   197→  1104→      if (lm) {
+   198→  1105→        values.line = lm[1].replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+   199→  1106→        filled.push("ligne");
+   200→  1107→      } else {
+   201→  1108→        const am = lineB.body.match(/([+\-−–]?\s?\d+(?:[.,]\d+)?)/);
+   202→  1109→        if (am) {
+   203→  1110→          values.line = am[1].replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+   204→  1111→          filled.push("ligne");
+   205→  1112→        }
+   206→  1113→      }
+   207→  1114→    }
+   208→  1115→    const oddsB = findBullet(eBullets, /^cote/);
+   209→  1116→    if (oddsB?.body) {
+   210→  1117→      const dec = oddsB.body.match(/\d{1,2}[.,]\d{1,3}/);
+   211→  1118→      let oddsVal: string | undefined;
+   212→  1119→      if (dec) {
+   213→  1120→        oddsVal = dec[0].replace(",", ".");
+   214→  1121→      } else {
+   215→  1122→        const plain = oddsB.body.match(/\b(\d{1,2}(?:[.,]\d+)?)\b/);
+   216→  1123→        if (plain) {
+   217→  1124→          const v = Number(plain[1].replace(",", "."));
+   218→  1125→          if (v >= 1.01 && v <= 100) oddsVal = String(v);
+   219→  1126→        }
+   220→  1127→      }
+   221→  1128→      if (oddsVal) {
+   222→  1129→        values.odds = oddsVal;
+   223→  1130→        filled.push("cote");
+   224→  1131→        warnings.push("cote importée — à contrôler");
+   225→  1132→      } else {
+   226→  1133→        warnings.push("cote introuvable (format non reconnu) — à saisir manuellement");
+   227→  1134→      }
+   228→  1135→    }
+   229→  1136→    const whyB = findBullet(eBullets, /^pourquoi/);
+   230→  1137→    if (whyB?.body) {
+   231→  1138→      synthesisBlocks.push(`Pourquoi ce marché : ${whyB.body.replace(/\s+/g, " ").trim()}`);
+   232→  1139→    }
+   233→  1140→  }
+   234→  1141→
+   235→  1142→  /* ---- G détecté tôt : la synthèse vient-elle de la section G ? ----
+   236→  1143→     Si oui, les raisons déterminantes de F ne seraient visibles nulle part
+   237→  1144→     sur la fiche → elles deviennent des POINTS CLÉS de décision. */
+   238→  1145→  const gText = hasSections ? sec("G") : "";
+   239→  1146→  const gUsed = !!(gText && gText.replace(/\W/g, "").length >= 60);
+   240→  1147→
+   241→  1148→  /* ---- F. Verdict (avec repli sur le texte intégral) ---- */
+   242→  1149→  const fText = sec("F") || cleanText(raw);
+   243→  1150→  if (fText) {
+   244→  1151→    const vm = fText.match(/JE\s+JOUE(?:\s+SOUS\s+CONDITION)?/i);
+   245→  1152→    if (vm) {
+   246→  1153→      const v = stripAccents(vm[0]).toUpperCase().replace(/\s+/g, " ");
+   247→  1154→      if (v.includes("SOUS CONDITION")) {
+   248→  1155→        values.verdict = "JE_JOUE_SOUS_CONDITION";
+   249→  1156→        const cm = fText.match(/sous condition\s*[:\-–—]?\s*(.+)/i);
+   250→  1157→        values.condition = (cm ? cm[1] : "").replace(/\s+/g, " ").trim().slice(0, 2000) || undefined;
+   251→  1158→        if (!values.condition) warnings.push("condition d'exécution à préciser (verdict sous condition)");
+   252→  1159→      } else {
+   253→  1160→        values.verdict = "JE_JOUE";
+   254→  1161→      }
+   255→  1162→      filled.push("verdict");
+   256→  1163→    } else {
+   257→  1164→      warnings.push("verdict non détecté dans la section F");
+   258→  1165→    }
+   259→  1166→
+   260→  1167→    const fFlat = stripAccents(fText).toLowerCase().replace(/\s+/g, " ");
+   261→  1168→    const conf = fFlat.match(
+   262→  1169→      new RegExp(`(?:niveau\\s+de\\s+|indice\\s+de\\s+)?confiance\\s*[:\\-–—]?\\s*(${CONF_LEVEL})(?:\\s*(?:a|ou|/|->|→)\\s*(${CONF_LEVEL}))?`)
+   263→  1170→    );
+   264→  1171→    if (conf) {
+   265→  1172→      values.confidence = levelToConfidence(conf[1]);
+   266→  1173→      filled.push("niveau de confiance");
+   267→  1174→      if (conf[2]) {
+   268→  1175→        warnings.push(
+   269→  1176→          `confiance ambiguë « ${conf[1]} à ${conf[2]} » — premier niveau appliqué, à confirmer`
+   270→  1177→        );
+   271→  1178→      }
+   272→  1179→    } else {
+   273→  1180→      warnings.push("niveau de confiance non détecté");
+   274→  1181→    }
+   275→  1182→
+   276→  1183→    const fBullets = parseBullets(fText);
+   277→  1184→    const reasonsB = findBullet(fBullets, /^raisons d[ée]terminantes/);
+   278→  1185→    if (reasonsB?.body) {
+   279→  1186→      synthesisBlocks.push(`Raisons déterminantes : ${reasonsB.body.replace(/\s+/g, " ").trim()}`);
+   280→  1187→      if (gUsed) keyPointItems.push(...splitReasons(reasonsB.body));
+   281→  1188→    }
+   282→  1189→    const limitB = findBullet(fBullets, /^principale limite/);
+   283→  1190→    if (limitB?.body) {
+   284→  1191→      synthesisBlocks.push(`Principale limite : ${limitB.body.replace(/\s+/g, " ").trim()}`);
+   285→  1192→    }
+   286→  1193→  }
+   287→  1194→
+   288→  1195→  /* ---- G. Synthèse finale (prioritaire sur les blocs E/F) ----
+   289→  1196→     Uniquement si des sections ont été détectées : en collage plat sans
+   290→  1197→     sections, sec("G") renverrait le texte ENTIER — on ne l'utilise pas. */
+   291→  1198→  if (gText && gText.replace(/\W/g, "").length >= 60) {
+   292→  1199→    const g = gText
+   293→  1200→      .split("\n")
+   294→  1201→      .map((l) => l.replace(/^\s*[-–—•*]\s*/, "").trim())
+   295→  1202→      .filter(Boolean)
+   296→  1203→      .join("\n")
+   297→  1204→      .trim();
+   298→  1205→    values.synthesis = capText(g, MAX_SYNTHESIS, warnings, "synthèse");
+   299→  1206→    filled.push("synthèse finale (G)");
+   300→  1207→  } else if (synthesisBlocks.length) {
+   301→  1208→    values.synthesis = capText(synthesisBlocks.join("\n\n").trim(), MAX_SYNTHESIS, warnings, "synthèse");
+   302→  1209→    filled.push("synthèse finale");
+   303→  1210→  }
+   304→  1211→
+   305→  1212→  /* ---- Points clés de décision (B + C + F + collage plat, dédoublonnés) ---- */
+   306→  1213→  if (keyPointItems.length) {
+   307→  1214→    const cleaned = dedupeItems(keyPointItems).filter((k) => !vsLineRe.test(k.trim()));
+   308→  1215→    if (cleaned.length) {
+   309→  1216→      const capped = cleaned.slice(0, MAX_POINTS).map((k) => k.slice(0, 480));
+   310→  1217→      values.keyPoints = capped.join("\n");
+   311→  1218→      filled.push(`points clés (${capped.length})`);
+   312→  1219→      if (cleaned.length > MAX_POINTS) {
+   313→  1220→        warnings.push(`points clés limités à ${MAX_POINTS} — ${cleaned.length - MAX_POINTS} ignorés`);
+   314→  1221→      }
+   315→  1222→    }
+   316→  1223→  }
+   317→  1224→
+   318→  1225→  /* ---- Repli global par étiquettes ------------------------------------
+   319→  1226→     Pour les collages sans structure reconnaissable (texte aplati, sections
+   320→  1227→     numérotées non détectées, labels éclatés) : chaque champ encore vide est
+   321→  1228→     recherché dans le TEXTE ENTIER par son étiquette. La valeur s'arrête au
+   322→  1229→     prochain label connu, à la fin de ligne ou à un saut de section. */
+   323→  1230→  if (
+   324→  1231→    filled.length === 0 || !values.market || !values.selection || !values.odds ||
+   325→  1232→    !values.matchDate || !values.matchName || !values.sport || !values.competition
+   326→  1233→  ) {
+   327→  1234→    // Parcourt chaque ligne : « Label : valeur » — la valeur s'étend jusqu'au
+   328→  1235→    // prochain label connu sur la MÊME ligne (collage aplati) ou fin de ligne.
+   329→  1236→    const rawLines = cleanText(raw).split("\n");
+   330→  1237→    const labeled: { label: string; body: string }[] = [];
+   331→  1238→    for (const line of rawLines) {
+   332→  1239→      const t = stripInline(line).trim();
+   333→  1240→      if (!t || DECOR_LINE_RE.test(t)) continue;
+   334→  1241→      const lm = t.match(LABEL_LINE_RE);
+   335→  1242→      if (lm) {
+   336→  1243→        labeled.push({ label: normLabel(lm[1]), body: lm[2].replace(STOP_LABEL_RE, "").trim() });
+   337→  1244→      } else if (
+   338→  1245→        labeled.length && !bulletReTop.test(t) &&
+   339→  1246→        !isShortLabel(labeled[labeled.length - 1].label)
+   340→  1247→      ) {
+   341→  1248→        // continuation : rattachée au dernier label (texte multi-lignes) —
+   342→  1249→        // JAMAIS pour les champs discrets (marché, sélection, cote…).
+   343→  1250→        labeled[labeled.length - 1].body += ` ${t.replace(STOP_LABEL_RE, "").trim()}`;
+   344→  1251→      }
+   345→  1252→    }
+   346→  1253→    const findL = (re: RegExp) => labeled.find((b) => re.test(b.label))?.body;
+   347→  1254→
+   348→  1255→    if (!values.matchName) {
+   349→  1256→      const v = findL(/^(match|rencontre|affiche|evenement)$/);
+   350→  1257→      if (v) {
+   351→  1258→        values.matchName = v.replace(/[.]\s*$/, "").slice(0, 160);
+   352→  1259→        filled.push("affiche (repli)");
+   353→  1260→      }
+   354→  1261→    }
+   355→  1262→    if (!values.sport || !values.competition) {
+   356→  1263→      const v = findL(/^sport/) || findL(/^competition/);
+   357→  1264→      if (v && !values.competition) {
+   358→  1265→        const comp = extractCompetition(v);
+   359→  1266→        if (comp.competition) values.competition = comp.competition.slice(0, 120);
+   360→  1267→        if (comp.sportHint && !values.sport) values.sport = comp.sportHint;
+   361→  1268→        if (!values.competition) values.competition = cleanCompetitionLabel(v).slice(0, 120) || undefined;
+   362→  1269→        if (values.competition) filled.push("compétition (repli)");
+   363→  1270→      }
+   364→  1271→      if (!values.sport && values.competition) {
+   365→  1272→        const f = stripAccents(values.competition).toLowerCase();
+   366→  1273→        if (/\bfoot/.test(f)) values.sport = "FOOTBALL";
+   367→  1274→        else if (/\bbasket/.test(f)) values.sport = "BASKETBALL";
+   368→  1275→        else if (/\btennis/.test(f)) values.sport = "TENNIS";
+   369→  1276→        if (values.sport) filled.push("sport (repli)");
+   370→  1277→      }
+   371→  1278→    }
+   372→  1279→    if (!values.matchDate) {
+   373→  1280→      const v = findL(/^(date( et heure| du match)?|heure|jour)$/);
+   374→  1281→      if (v) {
+   375→  1282→        const local = parseMatchDate(v, warnings);
+   376→  1283→        if (local) {
+   377→  1284→          values.matchDate = local;
+   378→  1285→          filled.push("date du match (repli)");
+   379→  1286→          warnings.push("date/heure importée — à contrôler");
+   380→  1287→        }
+   381→  1288→      }
+   382→  1289→    }
+   383→  1290→    if (!values.market) {
+   384→  1291→      const v = findL(/^(marche|market|pari retenu)$/);
+   385→  1292→      if (v) {
+   386→  1293→        values.market = v.split(/\s+\(ou\b/i)[0].replace(/[;.]+$/, "").trim().slice(0, 120) || undefined;
+   387→  1294→        if (values.market) filled.push("marché (repli)");
+   388→  1295→      }
+   389→  1296→    }
+   390→  1297→    if (!values.selection) {
+   391→  1298→      const v = findL(/^(selection|pronostic|pari|choix|pick)$/);
+   392→  1299→      if (v) {
+   393→  1300→        values.selection = v.replace(/[;.]+$/, "").trim().slice(0, 120) || undefined;
+   394→  1301→        if (values.selection) filled.push("sélection (repli)");
+   395→  1302→      }
+   396→  1303→    }
+   397→  1304→    // « Marché » contenant déjà le pari (ex. « Marché : Under 2,5 ») :
+   398→  1305→    // si la sélection manque, la dériver du marché plutôt que la perdre.
+   399→  1306→    if (!values.selection && values.market && values.market.length <= 40) {
+   400→  1307→      values.selection = values.market;
+   401→  1308→      filled.push("sélection (= marché)");
+   402→  1309→      warnings.push("sélection déduite du marché — vérifiez-la");
+   403→  1310→    }
+   404→  1311→    if (!values.line) {
+   405→  1312→      const v = findL(/^ligne\b/);
+   406→  1313→      const lm = v?.match(/^\s*([+\-−–—]?\s?\d+(?:[.,]\d+)?)/);
+   407→  1314→      if (lm) {
+   408→  1315→        values.line = lm[1].replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+   409→  1316→        filled.push("ligne (repli)");
+   410→  1317→      } else {
+   411→  1318→        const am = v?.match(/([+\-−–]?\s?\d+(?:[.,]\d+)?)/);
+   412→  1319→        if (am) {
+   413→  1320→          values.line = am[1].replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+   414→  1321→          filled.push("ligne (repli)");
+   415→  1322→        }
+   416→  1323→      }
+   417→  1324→    }
+   418→  1325→    if (!values.odds) {
+   419→  1326→      const v = findL(/^cotes?$/);
+   420→  1327→      if (v) {
+   421→  1328→        const dec = v.match(/\d{1,2}[.,]\d{1,3}/);
+   422→  1329→        if (dec) {
+   423→  1330→          values.odds = dec[0].replace(",", ".");
+   424→  1331→          filled.push("cote (repli)");
+   425→  1332→          warnings.push("cote importée — à contrôler");
+   426→  1333→        }
+   427→  1334→      }
+   428→  1335→    }
+   429→  1336→    if (!values.verdict) {
+   430→  1337→      const vm3 = flatRawAll.match(/JE\s+JOUE(?:\s+SOUS\s+CONDITION)?/i);
+   431→  1338→      if (vm3) {
+   432→  1339→        const v = stripAccents(vm3[0]).toUpperCase().replace(/\s+/g, " ");
+   433→  1340→        values.verdict = v.includes("SOUS CONDITION") ? "JE_JOUE_SOUS_CONDITION" : "JE_JOUE";
+   434→  1341→        filled.push("verdict (repli)");
+   435→  1342→      }
+   436→  1343→    }
+   437→  1344→    if (!values.confidence) {
+   438→  1345→      const cm = flatRawAll.match(
+   439→  1346→        new RegExp(`(?:niveau\\s+de\\s+|indice\\s+de\\s+)?confiance\\s*[:\\-–—]?\\s*(${CONF_LEVEL})(?:\\s*(?:a|ou|/|->|→)\\s*(${CONF_LEVEL}))?`, "i")
+   440→  1347→      );
+   441→  1348→      if (cm) {
+   442→  1349→        values.confidence = levelToConfidence(stripAccents(cm[1]).toLowerCase());
+   443→  1350→        filled.push("niveau de confiance (repli)");
+   444→  1351→        if (cm[2]) warnings.push(`confiance ambiguë « ${cm[1]} à ${cm[2]} » — premier niveau appliqué`);
+   445→  1352→      }
+   446→  1353→    }
+   447→  1354→
+   448→  1355→    /* ---- Scan essentiel global --------------------------------------------
+   449→  1356→       Garantit le préremplissage de l'essentiel quand le collage ne suit pas
+   450→  1357→       le format A à G : chaque champ critique encore vide est recherché dans
+   451→  1358→       le texte entier (dictionnaire de compétitions, motifs de date, cote,
+   452→  1359→       phrase « je joue … », type de marché). Rien n'est inventé : seul du
+   453→  1360→       texte explicitement présent est utilisé, et la prose n'est jamais
+   454→  1361→       aspirée dans les champs discrets. */
+   455→  1362→    const flatScan = stripAccents(flatRawAll).toLowerCase();
+   456→  1363→
+   457→  1364→    if (!values.sport || !values.competition) {
+   458→  1365→      if (!values.competition) {
+   459→  1366→        for (const c of COMPETITIONS) {
+   460→  1367→          if (c.re.test(flatScan)) {
+   461→  1368→            values.competition = c.label;
+   462→  1369→            filled.push("compétition (scan)");
+   463→  1370→            if (c.sport && !values.sport) {
+   464→  1371→              values.sport = c.sport;
+   465→  1372→              filled.push("sport (scan)");
+   466→  1373→            }
+   467→  1374→            break;
+   468→  1375→          }
+   469→  1376→        }
+   470→  1377→      }
+   471→  1378→      if (!values.sport) {
+   472→  1379→        if (/\bfoot(?:ball)?\b|\bsoccer\b/.test(flatScan)) values.sport = "FOOTBALL";
+   473→  1380→        else if (/\bbasket(?:ball)?\b/.test(flatScan)) values.sport = "BASKETBALL";
+   474→  1381→        else if (/\btennis\b/.test(flatScan)) values.sport = "TENNIS";
+   475→  1382→        if (values.sport) filled.push("sport (scan)");
+   476→  1383→      }
+   477→  1384→    }
+   478→  1385→
+   479→  1386→    if (!values.matchDate) {
+   480→  1387→      const local = parseMatchDate(flatRawAll, warnings);
+   481→  1388→      if (local) {
+   482→  1389→        values.matchDate = local;
+   483→  1390→        filled.push("date du match (scan)");
+   484→  1391→        warnings.push("date du match déduite du texte — à contrôler");
+   485→  1392→      }
+   486→  1393→    }
+   487→  1394→
+   488→  1395→    if (!values.odds) {
+   489→  1396→      const oddsPats: RegExp[] = [
+   490→  1397→        /\bcot(?:e|ation)s?\b[^%\n]{0,24}?(\d{1,2}[.,]\d{1,3})\b/,
+   491→  1398→        /\bodds?\b[^%\n]{0,24}?(\d{1,2}[.,]\d{1,3})\b/,
+   492→  1399→        /@\s*(\d{1,2}[.,]\d{1,3})\b/,
+   493→  1400→      ];
+   494→  1401→      for (const p of oddsPats) {
+   495→  1402→        const m = flatScan.match(p);
+   496→  1403→        if (m) {
+   497→  1404→          const v = Number(m[1].replace(",", "."));
+   498→  1405→          if (v >= 1.01 && v <= 100) {
+   499→  1406→            values.odds = String(v);
+   500→  1407→            filled.push("cote (scan)");
+   501→  1408→            warnings.push("cote importée — à contrôler");
+   502→  1409→            break;
+   503→  1410→          }
+   504→  1411→        }
+   505→  1412→      }
+   506→  1413→    }
+   507→  1414→
+   508→  1415→    if (!values.selection) {
+   509→  1416→      const lineJJ = cleanText(raw)
+   510→  1417→        .split("\n")
+   511→  1418→        .map((l) => stripInline(l).trim())
+   512→  1419→        .find((l) => /je\s+joue/i.test(l));
+   513→  1420→      if (lineJJ) {
+   514→  1421→        const after = lineJJ
+   515→  1422→          .replace(/^.*?je\s+joue(?:\s+sous\s+condition)?\s*(?:[:\-–—]\s*)?/i, "")
+   516→  1423→          .replace(STOP_LABEL_RE, "")
+   517→  1424→          .replace(/\s*@\s*[\d.,]+/gi, "")
+   518→  1425→          .replace(/\s*\(ou\s[^)]*\)\s*$/i, "")
+   519→  1426→          .replace(/\s*[;,.]+\s*$/, "")
+   520→  1427→          .replace(/\s+/g, " ")
+   521→  1428→          .trim();
+   522→  1429→        if (after.length >= 2) {
+   523→  1430→          values.selection = after.slice(0, 120);
+   524→  1431→          filled.push("sélection (scan)");
+   525→  1432→        }
+   526→  1433→      }
+   527→  1434→    }
+   528→  1435→
+   529→  1436→    if (!values.market) {
+   530→  1437→      const hay = `${flatScan} ${values.selection ? stripAccents(values.selection).toLowerCase() : ""}`;
+   531→  1438→      if (/\b(?:over|under|plus de|moins de)\s+\d/.test(hay)) values.market = "Over / Under";
+   532→  1439→      else if (/\basian\s*handicap\b/.test(hay)) values.market = "Asian Handicap";
+   533→  1440→      else if (/\bhandicap/.test(hay)) values.market = "Handicap";
+   534→  1441→      else if (/\bdouble\s+chance\b/.test(hay)) values.market = "Double chance";
+   535→  1442→      else if (/\bbtts\b|deux\s+equipes\s+marquent|les\s+deux\s+marquent/.test(hay))
+   536→  1443→        values.market = "Les deux équipes marquent";
+   537→  1444→      else if (/\bvainqueur\b|\bto\s+win\b|\bwinner\b/.test(hay)) values.market = "Vainqueur du match";
+   538→  1445→      else if (values.selection && /[+\-−]\s?\d+(?:[.,]\d+)?\s*$/.test(values.selection.trim()))
+   539→  1446→        values.market = "Handicap";
+   540→  1447→      if (values.market) filled.push("marché (scan)");
+   541→  1448→    }
+   542→  1449→  }
+   543→  1450→
+   544→  1451→  /* ---- Explicitation des champs restés vides (aucun échec silencieux) ----
+   545→  1452→     Placée en FIN de parseur : elle reflète l'état APRÈS tous les replis
+   546→  1453→     (scan essentiel, ligne dérivée, affiche « vs »). */
+   547→  1454→  if (filled.length >= 2) {
+   548→  1455→    const criticals: [string, string | undefined][] = [
+   549→  1456→      ["affiche (nom du match)", values.matchName],
+   550→  1457→      ["date du match", values.matchDate],
+   551→  1458→      ["marché", values.market],
+   552→  1459→      ["sélection", values.selection],
+   553→  1460→      ["cote", values.odds],
+   554→  1461→    ];
+   555→  1462→    for (const [label, v] of criticals) {
+   556→  1463→      if (!v) warnings.push(`${label} non reconnu(e) — à remplir manuellement`);
+   557→  1464→    }
+   558→  1465→  }
+   559→  1466→
+   560→  1467→  /* ---- Ligne déduite de la sélection (aucun échec silencieux) ----
+   561→  1468→     « FC Porto -0,5 » → ligne « -0,5 » ; « Under 2,5 » → « 2,5 ».
+   562→  1469→     Seulement si aucune ligne n'a été trouvée ailleurs. */
+   563→  1470→  if (!values.line && values.selection) {
+   564→  1471→    const sel = values.selection.replace(/\s+/g, " ").trim();
+   565→  1472→    const sm =
+   566→  1473→      sel.match(/(?:^|\s)([+\-−–]\s?\d+(?:[.,]\d+)?)\s*$/) ??
+   567→  1474→      sel.match(/^(?:under|over|moins de|plus de|au-dessus de|en-dessous de)\s+(\d+(?:[.,]\d+)?)/i);
+   568→  1475→    if (sm) {
+   569→  1476→      values.line = (sm[1] ?? "").replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+   570→  1477→      if (values.line) {
+   571→  1478→        filled.push("ligne (dérivée de la sélection)");
+   572→  1479→        warnings.push("ligne déduite de la sélection — vérifiez-la");
+   573→  1480→      }
+   574→  1481→    }
+   575→  1482→  }
+   576→  1483→
+   577→  1484→  /* ---- Dernier repli pour l'affiche : motif « X vs Y » ----
+   578→  1485→     Recherche LIGNE PAR LIGNE (texte nettoyé) : évite qu'un préfixe de la
+   579→  1486→     ligne précédente (« EuroLeague », « Basketball »…) se colle à l'affiche
+   580→  1487→     sur un texte aplati. */
+   581→  1488→  if (!values.matchName) {
+   582→  1489→    const vsLine = cleanText(raw)
+   583→  1490→      .split("\n")
+   584→  1491→      .map((l) => stripInline(l).trim())
+   585→  1492→      .find((l) => /\bvs\.?\b/i.test(l));
+   586→  1493→    if (vsLine) {
+   587→  1494→      const vm2 = vsLine.match(/([A-Za-zÀ-ÿ0-9.''\- ]{3,48})\s+\bvs\.?\b\s+([A-Za-zÀ-ÿ0-9.''\- ]{3,48})/i);
+   588→  1495→      if (vm2) {
+   589→  1496→        values.matchName = `${vm2[1].trim()} vs ${vm2[2].trim()}`.slice(0, 160);
+   590→  1497→        filled.push("affiche (vs)");
+   591→  1498→      }
+   592→  1499→    }
+   593→  1500→  }
+   594→  1501→
+   595→  1502→  if (filled.length === 0) {
+   596→  1503→    parseErrors.push("aucun champ reconnu — vérifiez que le texte suit le format NODE.47 (sections A à G)");
+   597→  1504→  }
+   598→  1505→
+   599→  1506→  return { values, filled, warnings, parseErrors };
+   600→  1507→}
+   601→
+   602→[showing lines 908-1507 of 1508; use offset=1508 with limit to continue reading]

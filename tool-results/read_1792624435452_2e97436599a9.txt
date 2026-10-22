@@ -1,0 +1,703 @@
+     1→"use client";
+     2→
+     3→import { useRef, useState } from "react";
+     4→import { useRouter } from "next/navigation";
+     5→import { Plus, Trash2, Loader2, Save, ClipboardPaste, Wand2, FileUp } from "lucide-react";
+     6→import { Button } from "@/components/ui/button";
+     7→import { Input } from "@/components/ui/input";
+     8→import { Label } from "@/components/ui/label";
+     9→import { Textarea } from "@/components/ui/textarea";
+    10→import { Switch } from "@/components/ui/switch";
+    11→import {
+    12→  Select,
+    13→  SelectContent,
+    14→  SelectItem,
+    15→  SelectTrigger,
+    16→  SelectValue,
+    17→} from "@/components/ui/select";
+    18→import {
+    19→  SPORT_OPTIONS,
+    20→  VERDICT_OPTIONS,
+    21→  CONFIDENCE_OPTIONS,
+    22→  RESULT_OPTIONS,
+    23→  STAKE_LABELS,
+    24→  type Confidence,
+    25→  type KeyStatItem,
+    26→} from "@/lib/picks";
+    27→import { useToast } from "@/hooks/use-toast";
+    28→import { parseAnalyzeText } from "@/lib/analyze-import";
+    29→
+    30→export interface PickFormInitial {
+    31→  id?: string;
+    32→  sport: string;
+    33→  competition: string;
+    34→  matchName: string;
+    35→  matchDate: string; // format datetime-local
+    36→  scenarioSummary: string;
+    37→  keyPoints: string; // une ligne = un point
+    38→  alternativeScenario: string;
+    39→  keyStats: KeyStatItem[];
+    40→  market: string;
+    41→  selection: string;
+    42→  line: string;
+    43→  odds: string;
+    44→  verdict: string;
+    45→  confidence: string;
+    46→  condition: string;
+    47→  synthesis: string;
+    48→  status: string;
+    49→  result: string;
+    50→  resultNote: string;
+    51→}
+    52→
+    53→export function EmptyPickForm(): PickFormInitial {
+    54→  return {
+    55→    sport: "FOOTBALL",
+    56→    competition: "",
+    57→    matchName: "",
+    58→    matchDate: "",
+    59→    scenarioSummary: "",
+    60→    keyPoints: "",
+    61→    alternativeScenario: "",
+    62→    keyStats: [],
+    63→    market: "",
+    64→    selection: "",
+    65→    line: "",
+    66→    odds: "",
+    67→    verdict: "JE_JOUE",
+    68→    confidence: "MODERE",
+    69→    condition: "",
+    70→    synthesis: "",
+    71→    status: "DRAFT",
+    72→    result: "PENDING",
+    73→    resultNote: "",
+    74→  };
+    75→}
+    76→
+    77→/** Date (Date|ISO) -> "YYYY-MM-DDTHH:mm" pour input datetime-local */
+    78→export function toDatetimeLocal(d: Date | string): string {
+    79→  const date = typeof d === "string" ? new Date(d) : d;
+    80→  const pad = (n: number) => String(n).padStart(2, "0");
+    81→  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    82→}
+    83→
+    84→function Field({
+    85→  label,
+    86→  children,
+    87→  hint,
+    88→  className,
+    89→  warn,
+    90→}: {
+    91→  label: string;
+    92→  children: React.ReactNode;
+    93→  hint?: string;
+    94→  className?: string;
+    95→  warn?: boolean;
+    96→}) {
+    97→  return (
+    98→    <div className={className}>
+    99→      <Label className="text-[13px] font-medium">
+   100→        {label}
+   101→        {warn && (
+   102→          <span className="ml-2 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+   103→            à vérifier
+   104→          </span>
+   105→        )}
+   106→      </Label>
+   107→      <div className="mt-1.5">{children}</div>
+   108→      {hint && <p className="mt-1.5 text-xs text-muted-foreground/70">{hint}</p>}
+   109→    </div>
+   110→  );
+   111→}
+   112→
+   113→export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "create" | "edit" }) {
+   114→  const router = useRouter();
+   115→  const { toast } = useToast();
+   116→  const [form, setForm] = useState<PickFormInitial>(initial ?? EmptyPickForm());
+   117→  const [loading, setLoading] = useState(false);
+   118→  const [error, setError] = useState<string | null>(null);
+   119→  const [importOpen, setImportOpen] = useState(mode === "create");
+   120→  const [importText, setImportText] = useState("");
+   121→  const [importWarn, setImportWarn] = useState<Record<string, boolean>>({});
+   122→  const fileInputRef = useRef<HTMLInputElement>(null);
+   123→
+   124→  function set<K extends keyof PickFormInitial>(key: K, value: PickFormInitial[K]) {
+   125→    setForm((f) => ({ ...f, [key]: value }));
+   126→    setImportWarn((w) => (w[key] ? { ...w, [key]: false } : w));
+   127→  }
+   128→
+   129→  /* --- Import d'une analyse collée --- */
+   130→  function applyImport() {
+   131→    const report = parseAnalyzeText(importText);
+   132→    if (report.parseErrors.length && report.filled.length === 0) {
+   133→      setError(`Import impossible — ${report.parseErrors[0]}`);
+   134→      return;
+   135→    }
+   136→    setForm((f) => ({ ...f, ...report.values }));
+   137→    setImportWarn({
+   138→      ...(report.values.matchDate ? { matchDate: true } : {}),
+   139→      ...(report.values.odds ? { odds: true } : {}),
+   140→    });
+   141→    const n = report.filled.length;
+   142→    const filledList = report.filled.slice(0, 10).join(" · ");
+   143→    toast({
+   144→      title: `Import analysé — ${n} champ${n > 1 ? "s" : ""} rempli${n > 1 ? "s" : ""}`,
+   145→      description: [
+   146→        filledList ? `Rempli : ${filledList}.` : "",
+   147→        report.warnings.length
+   148→          ? `À vérifier : ${report.warnings.slice(0, 6).join(" · ")}`
+   149→          : "Tous les champs restent modifiables avant enregistrement.",
+   150→      ]
+   151→        .filter(Boolean)
+   152→        .join(" "),
+   153→    });
+   154→    setImportText("");
+   155→    setImportOpen(false);
+   156→  }
+   157→
+   158→  /* --- Chargement d'un fichier d'analyse (.txt / .md) --- */
+   159→  function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
+   160→    const file = e.target.files?.[0];
+   161→    if (!file) return;
+   162→    if (file.size > 200_000) {
+   163→      setError("Fichier trop volumineux (200 Ko maximum).");
+   164→      e.target.value = "";
+   165→      return;
+   166→    }
+   167→    const reader = new FileReader();
+   168→    reader.onload = () => {
+   169→      setImportText(String(reader.result ?? ""));
+   170→      setError(null);
+   171→      toast({
+   172→        title: `Fichier « ${file.name} » chargé`,
+   173→        description: "Cliquez sur « Analyser et remplir » pour pré-remplir le formulaire.",
+   174→      });
+   175→    };
+   176→    reader.onerror = () => setError("Lecture du fichier impossible.");
+   177→    reader.readAsText(file, "utf-8");
+   178→    e.target.value = "";
+   179→  }
+   180→
+   181→  /* --- Stats clés dynamiques --- */
+   182→  function updateStat(index: number, patch: Partial<KeyStatItem>) {
+   183→    setForm((f) => ({
+   184→      ...f,
+   185→      keyStats: f.keyStats.map((s, i) => (i === index ? { ...s, ...patch } : s)),
+   186→    }));
+   187→  }
+   188→  function addStat() {
+   189→    setForm((f) => (f.keyStats.length >= 12 ? f : { ...f, keyStats: [...f.keyStats, { label: "", value: "" }] }));
+   190→  }
+   191→  function removeStat(index: number) {
+   192→    setForm((f) => ({ ...f, keyStats: f.keyStats.filter((_, i) => i !== index) }));
+   193→  }
+   194→
+   195→  async function handleSubmit(e: React.FormEvent) {
+   196→    e.preventDefault();
+   197→    setError(null);
+   198→
+   199→    /* Validation légère côté client */
+   200→    if (!form.competition.trim()) return setError("La compétition est requise.");
+   201→    if (!form.matchName.trim()) return setError("L'affiche du match est requise.");
+   202→    if (!form.matchDate) return setError("La date et l'heure du match sont requises.");
+   203→
+   204→    const oddsNum = form.odds.trim() ? Number(form.odds.replace(",", ".")) : null;
+   205→    if (oddsNum !== null && (!Number.isFinite(oddsNum) || oddsNum < 1)) {
+   206→      return setError("La cote doit être un nombre supérieur ou égal à 1.");
+   207→    }
+   208→
+   209→    const keyPoints = form.keyPoints
+   210→      .split("\n")
+   211→      .map((l) => l.trim())
+   212→      .filter(Boolean);
+   213→
+   214→    const keyStats = form.keyStats
+   215→      .filter((s) => s.label.trim() && s.value.trim())
+   216→      .map((s) => ({
+   217→        label: s.label.trim(),
+   218→        value: s.value.trim(),
+   219→        ...(s.detail?.trim() ? { detail: s.detail.trim() } : {}),
+   220→      }));
+   221→
+   222→    const payload = {
+   223→      sport: form.sport,
+   224→      competition: form.competition.trim(),
+   225→      matchName: form.matchName.trim(),
+   226→      matchDate: new Date(form.matchDate).toISOString(),
+   227→      scenarioSummary: form.scenarioSummary.trim(),
+   228→      keyPoints,
+   229→      keyStats,
+   230→      alternativeScenario: form.alternativeScenario.trim() || null,
+   231→      market: form.market.trim(),
+   232→      selection: form.selection.trim(),
+   233→      line: form.line.trim() || null,
+   234→      odds: oddsNum,
+   235→      verdict: form.verdict,
+   236→      confidence: form.confidence,
+   237→      condition: form.condition.trim() || null,
+   238→      synthesis: form.synthesis.trim(),
+   239→      status: form.status,
+   240→      result: form.result,
+   241→      resultNote: form.resultNote.trim() || null,
+   242→    };
+   243→
+   244→    setLoading(true);
+   245→    try {
+   246→      const res =
+   247→        mode === "create"
+   248→          ? await fetch("/api/admin/picks", {
+   249→              method: "POST",
+   250→              headers: { "Content-Type": "application/json" },
+   251→              body: JSON.stringify(payload),
+   252→            })
+   253→          : await fetch(`/api/admin/picks/${initial?.id}`, {
+   254→              method: "PATCH",
+   255→              headers: { "Content-Type": "application/json" },
+   256→              body: JSON.stringify(payload),
+   257→            });
+   258→
+   259→      const data = await res.json().catch(() => null);
+   260→      if (!res.ok) {
+   261→        setError(data?.error ?? "Enregistrement impossible.");
+   262→        return;
+   263→      }
+   264→
+   265→      toast({
+   266→        title:
+   267→          mode === "create"
+   268→            ? payload.status === "PUBLISHED"
+   269→              ? "Analyse créée et publiée"
+   270→              : "Analyse créée en brouillon"
+   271→            : "Analyse mise à jour",
+   272→      });
+   273→      router.push("/admin");
+   274→      router.refresh();
+   275→    } catch {
+   276→      setError("Erreur réseau. Réessayez.");
+   277→    } finally {
+   278→      setLoading(false);
+   279→    }
+   280→  }
+   281→
+   282→  return (
+   283→    <form onSubmit={handleSubmit} className="space-y-6">
+   284→      {/* ============ 0. Import depuis un texte ============ */}
+   285→      <section className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-5 sm:p-6">
+   286→        <button
+   287→          type="button"
+   288→          onClick={() => setImportOpen((v) => !v)}
+   289→          className="flex w-full items-center justify-between gap-3 text-left"
+   290→          aria-expanded={importOpen}
+   291→        >
+   292→          <span className="flex items-center gap-2.5">
+   293→            <ClipboardPaste className="h-4 w-4 text-primary" aria-hidden="true" />
+   294→            <span className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-primary">
+   295→              Importer depuis un texte
+   296→            </span>
+   297→          </span>
+   298→          <span className="text-xs text-muted-foreground">
+   299→            {importOpen ? "Masquer" : "Coller ou charger une analyse complète (A à G)"}
+   300→          </span>
+   301→        </button>
+   302→
+   303→        {importOpen && (
+   304→          <div className="mt-4 space-y-3">
+   305→            <Textarea
+   306→              value={importText}
+   307→              onChange={(e) => setImportText(e.target.value)}
+   308→              rows={10}
+   309→              placeholder={"Collez ou chargez ici l'analyse (sections A à G, mise en forme libre : gras, tirets, puces…).\n\nEx. : NODE.47 — Analyse : FC Porto vs PSV Eindhoven\nA. MATCH ET CONTEXTE\n- Match : …\n- Sport / compétition : Football / Ligue des Champions"}
+   310→              className="font-mono text-xs leading-relaxed"
+   311→            />
+   312→            <div className="flex flex-wrap items-center gap-2">
+   313→              <Button
+   314→                type="button"
+   315→                onClick={applyImport}
+   316→                disabled={!importText.trim()}
+   317→                className="h-9 gap-2 bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+   318→              >
+   319→                <Wand2 className="h-4 w-4" aria-hidden="true" />
+   320→                Analyser et remplir
+   321→              </Button>
+   322→              <Button
+   323→                type="button"
+   324→                variant="ghost"
+   325→                onClick={() => fileInputRef.current?.click()}
+   326→                className="h-9 gap-2"
+   327→              >
+   328→                <FileUp className="h-4 w-4" aria-hidden="true" />
+   329→                Charger un fichier
+   330→              </Button>
+   331→              <Button
+   332→                type="button"
+   333→                variant="ghost"
+   334→                onClick={() => setImportText("")}
+   335→                disabled={!importText}
+   336→                className="h-9"
+   337→              >
+   338→                Effacer
+   339→              </Button>
+   340→              <input
+   341→                ref={fileInputRef}
+   342→                type="file"
+   343→                accept=".txt,.md,.markdown,text/plain,text/markdown"
+   344→                onChange={onFileChosen}
+   345→                className="hidden"
+   346→                aria-hidden="true"
+   347→                tabIndex={-1}
+   348→              />
+   349→            </div>
+   350→            <p className="text-xs leading-relaxed text-muted-foreground">
+   351→              Le formulaire se pré-remplit automatiquement, quelle que soit la mise en forme
+   352→              (gras, tirets, puces, sections A à G) ; la saisie manuelle reste possible champ
+   353→              par champ. Date, cote et fuseau horaire sont signalés « à vérifier » après import.
+   354→            </p>
+   355→          </div>
+   356→        )}
+   357→      </section>
+   358→
+   359→      {/* ============ 1. Match ============ */}
+   360→      <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
+   361→        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-primary">
+   362→          01 — Rencontre
+   363→        </h2>
+   364→        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+   365→          <Field label="Sport">
+   366→            <Select value={form.sport} onValueChange={(v) => set("sport", v)}>
+   367→              <SelectTrigger className="h-10 w-full">
+   368→                <SelectValue placeholder="Choisir un sport" />
+   369→              </SelectTrigger>
+   370→              <SelectContent>
+   371→                {SPORT_OPTIONS.map((s) => (
+   372→                  <SelectItem key={s.value} value={s.value}>
+   373→                    {s.label}
+   374→                  </SelectItem>
+   375→                ))}
+   376→              </SelectContent>
+   377→            </Select>
+   378→          </Field>
+   379→
+   380→          <Field label="Compétition" hint="Ex. : Premier League, NBA, ATP Masters 1000">
+   381→            <Input
+   382→              value={form.competition}
+   383→              onChange={(e) => set("competition", e.target.value)}
+   384→              placeholder="Premier League"
+   385→              className="h-10"
+   386→            />
+   387→          </Field>
+   388→
+   389→          <Field label="Affiche du match" hint="Ex. : Arsenal vs Chelsea ou Alcaraz vs Sinner">
+   390→            <Input
+   391→              value={form.matchName}
+   392→              onChange={(e) => set("matchName", e.target.value)}
+   393→              placeholder="Arsenal vs Chelsea"
+   394→              className="h-10"
+   395→            />
+   396→          </Field>
+   397→
+   398→          <Field label="Date et heure du match" warn={importWarn.matchDate}>
+   399→            <Input
+   400→              type="datetime-local"
+   401→              value={form.matchDate}
+   402→              onChange={(e) => set("matchDate", e.target.value)}
+   403→              className="h-10"
+   404→            />
+   405→          </Field>
+   406→        </div>
+   407→      </section>
+   408→
+   409→      {/* ============ 2. Analyse (résumés publics) ============ */}
+   410→      <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
+   411→        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-primary">
+   412→          02 — Résumés publiés aux visiteurs
+   413→        </h2>
+   414→        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+   415→          Ces champs constituent la face publique de l&apos;analyse. Le déroulement complet de
+   416→          votre méthode reste privé.
+   417→        </p>
+   418→
+   419→        <div className="mt-5 space-y-5">
+   420→          <Field label="Scénario sportif (résumé)">
+   421→            <Textarea
+   422→              value={form.scenarioSummary}
+   423→              onChange={(e) => set("scenarioSummary", e.target.value)}
+   424→              rows={4}
+   425→              placeholder="Qui est supérieur, pourquoi, et comment cette supériorité peut se traduire pendant le match…"
+   426→            />
+   427→          </Field>
+   428→
+   429→          <Field
+   430→            label="Points clés de la décision"
+   431→            hint="Une ligne = un point. Ces arguments apparaissent sous « Ce qui a pesé dans la décision »."
+   432→          >
+   433→            <Textarea
+   434→              value={form.keyPoints}
+   435→              onChange={(e) => set("keyPoints", e.target.value)}
+   436→              rows={4}
+   437→              placeholder={"Ex. : xG cumulé nettement supérieur sur les 6 derniers matchs\nEx. : Absence du milieu défensif adverse confirmée\nEx. : Modèles et marché convergent sur la même lecture"}
+   438→            />
+   439→          </Field>
+   440→
+   441→          <Field label="Statistiques clés" hint="Maximum 12 statistiques. Laissez vide si non pertinent.">
+   442→            <div className="space-y-2.5">
+   443→              {form.keyStats.map((stat, i) => (
+   444→                <div key={i} className="grid gap-2 rounded-lg border border-border/70 bg-secondary/30 p-3 sm:grid-cols-12">
+   445→                  <Input
+   446→                    value={stat.label}
+   447→                    onChange={(e) => updateStat(i, { label: e.target.value })}
+   448→                    placeholder="Libellé (ex. xG sur 5 matchs)"
+   449→                    className="h-9 sm:col-span-5"
+   450→                  />
+   451→                  <Input
+   452→                    value={stat.value}
+   453→                    onChange={(e) => updateStat(i, { value: e.target.value })}
+   454→                    placeholder="Valeur (ex. 2,14)"
+   455→                    className="h-9 sm:col-span-2"
+   456→                  />
+   457→                  <Input
+   458→                    value={stat.detail ?? ""}
+   459→                    onChange={(e) => updateStat(i, { detail: e.target.value })}
+   460→                    placeholder="Détail court (optionnel)"
+   461→                    className="h-9 sm:col-span-4"
+   462→                  />
+   463→                  <button
+   464→                    type="button"
+   465→                    onClick={() => removeStat(i)}
+   466→                    className="inline-flex h-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-destructive sm:col-span-1"
+   467→                    aria-label={`Supprimer la statistique ${i + 1}`}
+   468→                  >
+   469→                    <Trash2 className="h-4 w-4" />
+   470→                  </button>
+   471→                </div>
+   472→              ))}
+   473→              <button
+   474→                type="button"
+   475→                onClick={addStat}
+   476→                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+   477→              >
+   478→                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+   479→                Ajouter une statistique
+   480→              </button>
+   481→            </div>
+   482→          </Field>
+   483→
+   484→          <Field label="Scénario alternatif (optionnel)">
+   485→            <Textarea
+   486→              value={form.alternativeScenario}
+   487→              onChange={(e) => set("alternativeScenario", e.target.value)}
+   488→              rows={2}
+   489→              placeholder="Le scénario secondaire crédible si la lecture principale dérape…"
+   490→            />
+   491→          </Field>
+   492→        </div>
+   493→      </section>
+   494→
+   495→      {/* ============ 3. Décision ============ */}
+   496→      <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
+   497→        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-primary">
+   498→          03 — Décision
+   499→        </h2>
+   500→
+   501→        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+   502→          <Field label="Verdict">
+   503→            <Select value={form.verdict} onValueChange={(v) => set("verdict", v)}>
+   504→              <SelectTrigger className="h-10 w-full">
+   505→                <SelectValue />
+   506→              </SelectTrigger>
+   507→              <SelectContent>
+   508→                {VERDICT_OPTIONS.map((v) => (
+   509→                  <SelectItem key={v.value} value={v.value}>
+   510→                    {v.label}
+   511→                  </SelectItem>
+   512→                ))}
+   513→              </SelectContent>
+   514→            </Select>
+   515→          </Field>
+   516→
+   517→          <Field
+   518→            label="Niveau de confiance"
+   519→            hint={`Mise appliquée : ${
+   520→              STAKE_LABELS[(form.confidence as Confidence) in STAKE_LABELS ? (form.confidence as Confidence) : "MODERE"]
+   521→            } — échelle fixe : Faible 0,5 u · Modéré 1 u · Élevé 1,5 u · Très élevé 2 u.`}
+   522→          >
+   523→            <Select value={form.confidence} onValueChange={(v) => set("confidence", v)}>
+   524→              <SelectTrigger className="h-10 w-full">
+   525→                <SelectValue />
+   526→              </SelectTrigger>
+   527→              <SelectContent>
+   528→                {CONFIDENCE_OPTIONS.map((c) => (
+   529→                  <SelectItem key={c.value} value={c.value}>
+   530→                    {c.label} — {STAKE_LABELS[c.value]}
+   531→                  </SelectItem>
+   532→                ))}
+   533→              </SelectContent>
+   534→            </Select>
+   535→          </Field>
+   536→
+   537→          {form.verdict === "JE_JOUE_SOUS_CONDITION" && (
+   538→            <Field
+   539→              label="Condition d'exécution"
+   540→              hint="Précisez l'élément exact à confirmer (composition, ligne disponible, prix…)."
+   541→              className="sm:col-span-2"
+   542→            >
+   543→              <Textarea
+   544→                value={form.condition}
+   545→                onChange={(e) => set("condition", e.target.value)}
+   546→                rows={2}
+   547→                placeholder="Ex. : Position jouable uniquement si le prix reste au-dessus de 1,80 à l'ouverture des compositions."
+   548→              />
+   549→            </Field>
+   550→          )}
+   551→
+   552→          <Field label="Marché" hint="Ex. : Asian Handicap, Over/Under, Handicap jeux">
+   553→            <Input
+   554→              value={form.market}
+   555→              onChange={(e) => set("market", e.target.value)}
+   556→              placeholder="Asian Handicap"
+   557→              className="h-10"
+   558→            />
+   559→          </Field>
+   560→
+   561→          <Field label="Sélection" hint="Ex. : Arsenal -0,5 · Over 2,5 · Djokovic -3,5 jeux">
+   562→            <Input
+   563→              value={form.selection}
+   564→              onChange={(e) => set("selection", e.target.value)}
+   565→              placeholder="Arsenal -0,5"
+   566→              className="h-10"
+   567→            />
+   568→          </Field>
+   569→
+   570→          <Field label="Ligne (optionnel)" hint="Ex. : -0,5 · 2,5 · -3,5">
+   571→            <Input
+   572→              value={form.line}
+   573→              onChange={(e) => set("line", e.target.value)}
+   574→              placeholder="-0,5"
+   575→              className="h-10"
+   576→            />
+   577→          </Field>
+   578→
+   579→          <Field
+   580→            label="Cote observée (optionnel)"
+   581→            hint="Laissez vide si non vérifiable (affiché N/D)."
+   582→            warn={importWarn.odds}
+   583→          >
+   584→            <Input
+   585→              inputMode="decimal"
+   586→              value={form.odds}
+   587→              onChange={(e) => set("odds", e.target.value)}
+   588→              placeholder="1,85"
+   589→              className="h-10"
+   590→            />
+   591→          </Field>
+   592→
+   593→          <Field label="Synthèse finale" className="sm:col-span-2">
+   594→            <Textarea
+   595→              value={form.synthesis}
+   596→              onChange={(e) => set("synthesis", e.target.value)}
+   597→              rows={3}
+   598→              placeholder="« [Équipe] est supérieur pour [raisons]. Les preuves convergent. Le marché qui traduit le mieux ce scénario est [marché]. Ma décision est [verdict]. »"
+   599→            />
+   600→          </Field>
+   601→        </div>
+   602→      </section>
+   603→
+   604→      {/* ============ 4. Publication & résultat ============ */}
+   605→      <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
+   606→        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-primary">
+   607→          04 — Publication{mode === "edit" ? " & résultat" : ""}
+   608→        </h2>
+   609→
+   610→        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+   611→          <div className="flex items-center justify-between rounded-lg border border-border/70 bg-secondary/30 px-4 py-3.5">
+   612→            <div>
+   613→              <Label className="text-[13px] font-medium">Publier sur le site</Label>
+   614→              <p className="mt-0.5 text-xs text-muted-foreground">
+   615→                {form.status === "PUBLISHED"
+   616→                  ? "Visible immédiatement par les visiteurs."
+   617→                  : "Brouillon privé — invisible du public."}
+   618→              </p>
+   619→            </div>
+   620→            <Switch
+   621→              checked={form.status === "PUBLISHED"}
+   622→              onCheckedChange={(checked) => set("status", checked ? "PUBLISHED" : "DRAFT")}
+   623→              aria-label="Publier sur le site"
+   624→            />
+   625→          </div>
+   626→
+   627→          {mode === "edit" && (
+   628→            <div className="rounded-lg border border-border/70 bg-secondary/30 px-4 py-3.5">
+   629→              <Label className="text-[13px] font-medium">Résultat</Label>
+   630→              <Select value={form.result} onValueChange={(v) => set("result", v)}>
+   631→                <SelectTrigger className="mt-1.5 h-9 w-full">
+   632→                  <SelectValue />
+   633→                </SelectTrigger>
+   634→                <SelectContent>
+   635→                  {RESULT_OPTIONS.map((r) => (
+   636→                    <SelectItem key={r.value} value={r.value}>
+   637→                      {r.label}
+   638→                    </SelectItem>
+   639→                  ))}
+   640→                </SelectContent>
+   641→              </Select>
+   642→            </div>
+   643→          )}
+   644→
+   645→          {mode === "edit" && (
+   646→            <Field
+   647→              label="Note de résultat (optionnel)"
+   648→              hint="Ex. : Match reporté · Remboursé suite à l'abandon…"
+   649→              className="sm:col-span-2"
+   650→            >
+   651→              <Input
+   652→                value={form.resultNote}
+   653→                onChange={(e) => set("resultNote", e.target.value)}
+   654→                className="h-10"
+   655→              />
+   656→            </Field>
+   657→          )}
+   658→        </div>
+   659→      </section>
+   660→
+   661→      {/* Erreur */}
+   662→      {error && (
+   663→        <p
+   664→          role="alert"
+   665→          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+   666→        >
+   667→          {error}
+   668→        </p>
+   669→      )}
+   670→
+   671→      {/* Soumission */}
+   672→      <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+   673→        <Button
+   674→          type="button"
+   675→          variant="ghost"
+   676→          onClick={() => router.push("/admin")}
+   677→          className="h-11"
+   678→          disabled={loading}
+   679→        >
+   680→          Annuler
+   681→        </Button>
+   682→        <Button
+   683→          type="submit"
+   684→          disabled={loading}
+   685→          className="h-11 gap-2 bg-primary px-6 text-primary-foreground hover:bg-primary/90"
+   686→        >
+   687→          {loading ? (
+   688→            <>
+   689→              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+   690→              Enregistrement…
+   691→            </>
+   692→          ) : (
+   693→            <>
+   694→              <Save className="h-4 w-4" aria-hidden="true" />
+   695→              {mode === "create" ? "Créer l'analyse" : "Enregistrer les modifications"}
+   696→            </>
+   697→          )}
+   698→        </Button>
+   699→      </div>
+   700→    </form>
+   701→  );
+   702→}
+   703→

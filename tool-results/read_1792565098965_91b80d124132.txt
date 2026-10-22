@@ -1,0 +1,275 @@
+     1→# Worklog — Projet NODE.47
+     2→
+     3→---
+     4→Task ID: 1
+     5→Agent: Z.ai (agent principal)
+     6→Task: Créer un site web interactif et élégant pour publier les résultats d'analyses sportives (NODE.47 TRADER INTELLIGENCE) sur 3 sports (Football, Basketball, Tennis), sans exposer le processus d'analyse — uniquement les marchés retenus, les stats et les résumés.
+     7→
+     8→Work Log:
+     9→- Chargé le skill fullstack-dev et initialisé l'environnement Next.js 16 (App Router, TypeScript, Tailwind 4, shadcn/ui, Prisma/SQLite)
+    10→- Défini le schéma Prisma `Pick` (sport, compétition, affiche, date, scénario, keyPoints JSON, keyStats JSON, marché/sélection/ligne/cote, verdict, confiance, condition, synthèse, statut DRAFT/PUBLISHED, résultat PENDING/WON/LOST/PUSH/VOID) + `bun run db:push`
+    11→- Design system sombre premium : charbon chaud + accents or (oklch), polices Space Grotesk / Inter / JetBrains Mono, utilitaires custom (hero-grid, text-gold-gradient, card-glow, animate-rise) — corrigé le problème Tailwind v4 qui ignore les classes statiques dans `@layer utilities` (déplacées hors couche)
+    12→- Librairies : `src/lib/auth.ts` (cookie signé HMAC, mot de passe ADMIN_PASSWORD, session 30 j), `src/lib/picks.ts` (types, libellés FR, styles verdicts/résultats, calculs de performance en unités, formatage fr-FR)
+    13→- Composants : logo NODE.47 SVG, icônes sports SVG custom (football/basketball/tennis), header sticky avec menu mobile, footer sticky avec avertissement 18+, badges verdict/résultat/confiance, carte PickCard, graphique recharts (courbe d'unités)
+    14→- Pages publiques (route group `(site)`) : accueil (hero, chiffres clés, dernières sélections, couverture par sport, philosophie sans révéler la méthode, légende des verdicts, CTA), /analyses (filtres serveur par sport/verdict/résultat), /analyses/[id] (marché retenu, condition d'exécution, scénario, stats clés, points de décision, synthèse, bandeau de résultat, analyses liées), /performance (stats globales, courbe cumulative, détail par sport, historique), 404 élégante
+    15→- API admin sécurisée : /api/admin/login, /api/admin/logout, /api/admin/picks (GET/POST), /api/admin/picks/[id] (PATCH/DELETE) avec validation zod et vérification de session HMAC
+    16→- Console analyste (route group `admin/(protected)` protégé par layout serveur) : login, dashboard (stats, actions rapides publier/dépublier/régler/supprimer via dropdown + AlertDialog), formulaire création/édition complet (stats dynamiques, condition conditionnelle selon verdict, switch publication, règlement résultat)
+    17→- Seed : 10 analyses de démonstration (3 football, 3 basketball, 3 tennis + 1 brouillon privé) — contenus d'exemple à remplacer
+    18→- Auto-vérification Agent Browser complète : toutes les pages testées, flux admin de bout en bout (login KO puis OK, création+publication, règlement Gagné, suppression avec confirmation, déconnexion + re-protection), responsive mobile (390px, menu hamburger), brouillons correctement masqués du public
+    19→- Corrections pendant la vérification : import icône lucide inexistante, dégradation `running` → `reduce` (règle ESLint), stats dashboard avec icône manquante, `EmptyPickForm` appelé depuis un composant serveur (initial optionnel)
+    20→- Lint final propre, 0 erreur console/serveur en session fraîche
+    21→
+    22→Stage Summary:
+    23→- Site livré : plateforme NODE.47 complète (Next.js 16 + Prisma/SQLite) avec site public élégant et console analyste privée
+    24→- Accès console : /admin — mot de passe par défaut `NODE47-admin2024` (configurable via ADMIN_PASSWORD dans .env)
+    25→- Cloisonnement garanti : brouillons invisibles, seuls les résumés/marchés/stats/verdicts sont publics ; le framework NODE.47 détaillé n'est jamais exposé
+    26→- Données de démo à remplacer : 10 analyses d'exemple (dont 1 brouillon) créées par scripts/seed.ts
+    27→- Scripts persistés : scripts/seed.ts (ré-exécutable, idempotent)
+    28→
+    29→---
+    30→Task ID: 2
+    31→Agent: Z.ai (agent principal)
+    32→Task: (a) Supprimer intégralement les décisions « Je ne joue pas » du site (l'utilisateur ne les publie pas) ; (b) Ajouter une page « À propos ».
+    33→
+    34→Work Log:
+    35→- src/lib/picks.ts : type Verdict réduit à JE_JOUE | JE_JOUE_SOUS_CONDITION ; suppression de JE_NE_JOUE_PAS dans VERDICT_LABELS/DESCRIPTIONS/OPTIONS/verdictStyles ; suppression de isPlayed() ; unitsProfit simplifié ; summarize : played = published (toute publication engage une sélection)
+    36→- badges.tsx : fallback VerdictBadge -> JE_JOUE ; pick-card.tsx : bloc marché toujours affiché (plus de branche « Aucune position retenue »)
+    37→- Accueil : pilier « Décision assumée » rewordé ; légende verdicts en 2 colonnes sans « Je ne joue pas » ; cartes sports « X sélections publiées »
+    38→- /analyses : filtre verdict à 2 options ; détail /analyses/[id] : suppression isNoPlay, marché retenu toujours en grille 3 colonnes, bannière résultat conditionnée au seul règlement
+    39→- /performance : suppression isPlayed, colonne sélection sans condition verdict ; console admin : compteur « À régler » sans filtre verdict
+    40→- API : zod verdict = JE_JOUE | JE_JOUE_SOUS_CONDITION (POST + PATCH) ; handlers annotés NextRequest (correction typage tsc) ; schéma Prisma : verdict default JE_JOUE + db:push
+    41→- seed.ts : les 4 démos « Je ne joue pas » remplacées par de vraies sélections (Real Madrid Over 168,5 ; Denver -5,5 sous condition ; Swiatek Over 21,5 gagnée ; Fritz vainqueur perdue) ; seed relancé -> 10 analyses (9 publiées + 1 brouillon), bilan démo 4V-2D, +1,43 u
+    42→- pick-form.tsx : correction tsc (initial?.id) ; seed interface odds?: number | null
+    43→- Nouvelle page /a-propos (route group site) : hero, raison d'être, chiffres clés dynamiques (db), « ce que chaque publication contient » (3 cartes), « ce que vous ne verrez jamais » (processus privé), mode d'emploi (2 verdicts, jauge confiance, unités), 4 principes, FAQ accordéon (5 questions, shadcn Accordion), encart jeu responsable ; metadata SEO
+    44→- Navigation : « À propos » ajouté au header desktop/mobile et au footer
+    45→- Vérifications : lint propre, tsc src/ propre, Agent Browser (1440px + 390px) : /a-propos complète + FAQ interactive, accueil (légende 2 verdicts), /analyses (filtres + 9 cartes avec marché), détail Swiatek (bannière Gagné +0,74 u), /performance (historique +1,43 u), console admin (select verdict à 2 options, login OK) ; API testée : POST verdict JE_NE_JOUE_PAS -> 400 rejeté, création+suppression valides OK ; 0 erreur console ; 0 occurrence « Je ne joue pas » sur le site ; pas de scroll horizontal mobile
+    46→
+    47→Stage Summary:
+    48→- Le verdict « Je ne joue pas » n'existe plus nulle part sur le site (UI, filtres, légende, API, seed) : seules des sélections engageables sont publiées
+    49→- Page « À propos » livrée sur /a-propos, reliée au header et au footer
+    50→- Données de démo actualisées : 9 sélections publiées toutes avec marché retenu, 4V-2D, +1,43 u
+    51→
+    52→---
+    53→Task ID: 3
+    54→Agent: Z.ai (agent principal)
+    55→Task: (a) Appliquer l'échelle des mises par niveau de confiance (FAIBLE 0 U, MODÉRÉ 1 U, ÉLEVÉ 1,5 U, TRÈS ÉLEVÉ 2 U) ; (b) Ajouter la bascule thème sombre ↔ thème clair.
+    56→
+    57→Work Log:
+    58→- src/lib/picks.ts : STAKE_UNITS/STAKE_LABELS par confiance (0/1/1,5/2), stakeOf(), stakeLabelOf(), formatStake(), CONFIDENCE_STAKE_LEGEND ; unitsProfit() désormais pondéré par la mise (WON: (cote-1)×mise, LOST: -mise, FAIBLE=0 toujours) ; summarize() ajoute `staked` (unités engagées sur réglées) et ROI recalculé = unités/staked ; verdictStyles/resultStyles migrés vers jetons sémantiques (success/warning/destructive/foreground) valables dans les deux thèmes
+    59→- badges.tsx : ConfidenceMeter avec option showStake (« Confiance Élevé · Mise 1,5 u »), nouveau StakeBadge (pastille dorée mono), segment inactif bg-foreground/12 thématisé
+    60→- pick-card.tsx : badge de mise sur chaque carte ; détail /analyses/[id] : panneau marché en 4 colonnes avec « Mise appliquée », bannière résultat gère le cas mise nulle (« Mise nulle — 0 u »), en-tête avec jauge+mise, disclaimer mis à jour
+    61→- /performance : colonne « Mise » dans l'historique, textes d'échelle, couleurs thématisées ; home : bloc « Échelle des mises appliquées » (4 cartes 0 u/1 u/1,5 u/2 u) sous la légende des verdicts
+    62→- /a-propos : principe « Mise calibrée par la confiance », carte « L'échelle des mises » (tableau complet + exemple chiffré), jauges avec mises, nouvelle FAQ « Comment la mise est-elle fixée ? », FAQ unités rewordée
+    63→- Console admin : select confiance affiche « Modéré — 1 u » + hint dynamique d'échelle ; pick-form/pick-actions/login migrés aux jetons
+    64→- Thème clair complet : globals.css réorganisé (jetons clair dans :root, sombre dans .dark) + nouveaux tokens surface-alt/grid-line/hero-halo/card-shadow/scrollbar-thumb ; dégradé or texte en bronze en clair ; hero-grid, card-glow, scrollbar, ::selection adaptatifs
+    65→- next-themes (attribute="class", defaultTheme="dark") via ThemeProvider root ; ThemeToggle (icônes Sun/Moon inversées par CSS dark:, zéro hydration mismatch) dans header desktop + mobile ; layout.tsx sans classe dark codée en dur + data-scroll-behavior="smooth"
+    66→- units-chart.tsx en variables CSS (var(--primary), var(--border), var(--popover)…) ; logo et accents sportifs en variantes dark: (bronze clair / or sombre) ; header/footer/layout admin sur bg-background & bg-surface-alt
+    67→- seed.ts : Atalanta → FAIBLE (0 u), Real Madrid Over 168,5 → TRES_ELEVE (2 u) pour couvrir toute l'échelle ; seed relancé (10 analyses)
+    68→- Vérifications Agent Browser (1440 px + 390 px, les deux thèmes) : bascule dark↔light OK et persistée (localStorage theme), rechargement conserve le thème ; bilan recalculé +2,78 u, ROI +37 % (2,775/7,5) ; historique avec mises (2 u EN ATTENTE « — », 1,5 u GAGNÉ +1,35 u…) ; fiche Atalanta « Mise appliquée : 0 u » + jauge 1/4 ; échelle visible sur home et À propos ; formulaire admin select + hint ; pas d'erreur console, pas de scroll horizontal mobile ; lint et tsc src/ propres
+    69→
+    70→Stage Summary:
+    71→- Échelle des mises appliquée de bout en bout : affichage public (cartes, fiches, performance, légende, À propos), calculs de performance pondérés, console analyste alignée
+    72→- Bascule thème sombre/clair opérationnelle avec persistance ; site entièrement lisible dans les deux thèmes (identité or/charbon en sombre, bronze/papier chaud en clair)
+    73→- Données de démo couvrant les 4 niveaux de confiance ; bilan démo : +2,78 u, ROI +37 %, 67 % de réussite
+    74→
+    75→---
+    76→Task ID: 4
+    77→Agent: Z.ai (agent principal)
+    78→Task: Correction de l'aperçu bloqué sur le « gros Z » (serveur de développement arrêté).
+    79→
+    80→Work Log:
+    81→- Diagnostic : aucun processus next/bun actif, port 3000 non à l'écoute — l'aperçu restait sur l'écran de chargement Z.ai
+    82→- Redémarrage du serveur via setsid bun run dev (nohup simple tué à la fin du shell, setsid persistant) — Ready in 2,1 s
+    83→- Vérification HTTP : / 200, /analyses 200, /performance 200, /a-propos 200, /analyses/[id valide] 200, /admin 307 (redirection login attendue)
+    84→- Base de données intacte : 10 analyses (9 publiées + 1 brouillon masqué), thème et échelle des mises en place
+    85→
+    86→Stage Summary:
+    87→- Cause identifiée : arrêt du serveur dev (redémarrage d'environnement), pas de bug applicatif
+    88→- Site de nouveau accessible : toutes les pages répondent 200, données intactes
+    89→
+    90→---
+    91→Task ID: 5
+    92→Agent: Z.ai (agent principal)
+    93→Task: (a) Cycle de publication ancré à 8 h UTC + fil public limité aux 3 dernières éditions (aujourd'hui / hier / avant-hier) ; (b) Suivi de performance recalculé sur les 30 derniers jours, affichage restructuré.
+    94→
+    95→Work Log:
+    96→- picks.ts : EDITION_HOUR_UTC=8, EDITION_WINDOW_DAYS=3, TRACKING_WINDOW_DAYS=30 ; helpers editionDayOf (publication entre 8 h UTC (J) et 7 h 59 UTC (J+1) => édition J), editionWindow, editionCalendarDays, editionDayLabel (Aujourd'hui/Hier/Avant-hier + date FR), trackingWindowStart, formatTrackingPeriod, isInTrackingWindow (réglées dans la fenêtre ou en attente publiées dans la fenêtre)
+    97→- /analyses : requête bornée à publishedAt >= 8 h UTC (J-2), regroupement en 3 sections éditées avec compteurs, programme du jour trié chronologiquement, état vide spécifique « édition du jour en préparation — publication à partir de 8 h UTC », chips d'en-tête (3 jours affichés / publication dès 8 h UTC), note de sortie de fil vers le suivi 30 j ; filtres sport/verdict/résultat conservés
+    98→- /performance : période affichée (puce « 30 derniers jours · du 21/09/2026 au 20/10/2026 »), 6 KPI (publiées, réglées + n en attente, taux, unités engagées, bilan net, ROI), courbe « 30 jours », détail par sport, section « En attente de règlement » (cartes cliquables), historique fenêtré, notes mises à jour
+    99→- Accueil : chiffres clés fenêtrés 30 j (Sélections/Réussite/Unités nettes 30 j) + légende « fenêtre glissante 30 jours · publication quotidienne dès 8 h UTC », note sous « sélections récentes »
+   100→- À propos : bloc « En chiffres · 30 jours » fenêtré, principe « résultats réglés » rewordé (suivi glissant 30 j), 2 nouvelles FAQ (rythme 8 h UTC ; durée d'affichage 3 jours puis suivi 30 j)
+   101→- seed.ts : helpers utcAt/pubForToday (UTC, repli veille si l'heure du jour n'est pas encore passée) ; démos réparties : édition 20/10 (3 PENDING : Atalanta, Denver, Real Madrid), 19/10 (Swiatek W, Fritz L, Sociedad L), 18/10 (Arsenal W, Sinner W, Boston W) ; seed relancé (10 analyses)
+   102→- Vérifications : lint OK, tsc src/ OK ; Agent Browser 1440 px + 390 px, thèmes sombre/clair (toggle + persistance localStorage) : 3 sections éditions confirmées (20/10, 19/10, 18/10 — 3 sélections chacune), performance 9 publiées / 6 réglées / 67 % / 7,5 u / +2,78 u / ROI +37 %, section en attente (3), historique complet avec mises, pas de scroll horizontal mobile, 0 erreur console, toutes pages 200
+   103→
+   104→Stage Summary:
+   105→- Le site applique le cycle de publication 8 h UTC : une édition J couvre les publications de 8 h UTC (J) à 7 h 59 UTC (J+1)
+   106→- Fil public /analyses = 3 dernières éditions (aujourd'hui, hier, avant-hier) ; les plus anciennes sortent du fil
+   107→- Suivi de performance = fenêtre glissante 30 jours, affichage structuré (période, 6 KPI, courbe, par sport, en attente, historique)
+   108→- Données de démo alignées sur les 3 éditions ; bilan 4V-2D, +2,78 u, ROI +37 %
+   109→
+   110→---
+   111→Task ID: 6
+   112→Agent: Z.ai (agent principal)
+   113→Task: (a) Nouvelle échelle des mises — FAIBLE 0,5 U (au lieu de 0 U), MODÉRÉ 1 U, ÉLEVÉ 1,5 U, TRÈS ÉLEVÉ 2 U ; (b) Page « À propos » : « Le niveau de confiance » + « L'échelle des mises » dans un même cadre, « Jeu responsable » + « Avertissement » dans un même cadre.
+   114→
+   115→Work Log:
+   116→- src/lib/picks.ts : STAKE_UNITS FAIBLE 0 → 0,5 ; STAKE_LABELS FAIBLE « 0 u » → « 0,5 u » ; commentaires (unitsProfit, formatStake, CONFIDENCE_STAKE_LEGEND) alignés — tous les affichages (badges, cartes, fiches, performance, admin) dérivent automatiquement de ces constantes
+   117→- Textes d'échelle mis à jour : pick-form.tsx (hint admin « Faible 0,5 u · … »), accueil (« engage la mise minimale (0,5 u) »), performance (2 occurrences), fiche analyse (disclaimer « 0,5 u à 2 u »)
+   118→- a-propos/page.tsx : PRINCIPLES et FAQ rewordés (confiance faible = 0,5 u, mise minimale — plus de « sélection publiée sans engagement ») ; exemple chiffré de l'échelle mis à jour
+   119→- Fusion cadre 1 : « Le niveau de confiance » (4 jauges avec mises) + séparateur + « L'échelle des mises » (tableau dl + exemple) dans une seule carte border bg-card p-6
+   120→- Fusion cadre 2 : « Jeu responsable » (risques, règle d'or, numéro d'aide 09 74 75 13 13) + « Avertissement » (titre + caractère informatif, absence de garantie, cotes non garanties, performances passées, 18+) dans une seule carte avec séparateur ; aucun contenu perdu, pas de doublon avec le footer
+   121→- Vérifications : eslint OK ; tsc 0 erreur sur src/ ; Agent Browser 1440 px + 390 px — cadre unique confirmé (le card du h3 « Le niveau de confiance » contient « l'échelle des mises » ; le card du h2 « Jeu responsable » contient « Avertissement »), 0 erreur console, pas de scroll horizontal mobile, aucun texte résiduel « sans engagement / Faible 0 u »
+   122→- Base de données vérifiée : 10 picks publiés = 9 du seed + 1 réel créé via la console admin (Marseille vs Lyon, MODÉRÉ 1 u) — aucun doublon ; Atalanta (FAIBLE) affiche désormais 0,5 u automatiquement
+   123→
+   124→Stage Summary:
+   125→- Échelle finale appliquée partout : FAIBLE 0,5 u · MODÉRÉ 1 u · ÉLEVÉ 1,5 u · TRÈS ÉLEVÉ 2 u (calculs pondérés inclus)
+   126→- Page À propos réorganisée en cadres uniques : confiance + échelle des mises ensemble ; jeu responsable + avertissement ensemble
+   127→- Toutes les pages 200, rendu vérifié en sombre/clair desktop et mobile
+   128→
+   129→---
+   130→Task ID: 7
+   131→Agent: Z.ai (agent principal)
+   132→Task: Supprimer le doublon du texte « Avertissement » sur la page « À propos » (cadre dédié + mention du pied de page affichées deux fois).
+   133→
+   134→Work Log:
+   135→- Diagnostic : le texte cité par l'utilisateur (« Avertissement — Les paris sportifs comportent des risques… ») provient du pied de page (site-footer.tsx), affiché sous le cadre « Jeu responsable & Avertissement » de /a-propos → doublon
+   136→- Nouveau composant src/components/footer-disclaimer.tsx (« use client », usePathname) : rend null sur /a-propos, sinon la mention légale complète
+   137→- site-footer.tsx : la mention est déléguée à <FooterDisclaimer /> (composant serveur conservé, import du composant client)
+   138→- Vérifications : eslint OK, tsc 0 erreur src/ ; Agent Browser — /a-propos : « Avertissement » 1× (cadre), doublon footer 0×, ligne d'aide 09 74 75 13 13 présente 1× ; /performance et / : mention footer intacte (1×) ; capture d'écran du bas de page validée (cadre unique + footer allégé avec copyright)
+   139→
+   140→Stage Summary:
+   141→- Sur /a-propos, l'avertissement figure une seule fois, dans le cadre fusionné « Jeu responsable + Avertissement »
+   142→- La mention légale reste affichée dans le pied de page de toutes les autres pages
+   143→
+   144→---
+   145→Task ID: 8
+   146→Agent: Z.ai (agent principal)
+   147→Task: Supprimer la redondance dans le cadre « Le niveau de confiance » + « L'échelle des mises » de /a-propos.
+   148→
+   149→Work Log:
+   150→- Diagnostic : les jauges ConfidenceMeter avec showStake affichaient déjà la mise de chaque niveau (« Confiance Faible · Mise 0,5 u »), et le tableau de l'échelle juste en dessous répétait les mêmes 4 correspondances
+   151→- a-propos/page.tsx : retrait de showStake sur les 4 jauges (jauge = confiance pure) ; phrase d'intro de l'échelle rewordée (« À chaque niveau de confiance correspond une mise fixe, appliquée à toutes les sélections : ») ; note d'exemple épurée (suppression de la phrase répétant min/max déjà visibles dans le tableau)
+   152→- Vérifications : eslint OK, tsc 0 erreur src/ ; capture d'écran validée — la correspondance niveau → mise n'apparaît plus qu'une seule fois (tableau), structure jauge / séparateur / échelle conservée
+   153→
+   154→Stage Summary:
+   155→- Cadre « À propos » dédoublonné : section confiance (4 jauges) puis section échelle (tableau 0,5 u / 1 u / 1,5 u / 2 u + exemple), sans répétition
+   156→- Les jauges avec mise restent utilisées là où elles sont utiles (fiches analyses, console admin)
+   157→
+   158→---
+   159→Task ID: 9
+   160→Agent: Z.ai (agent principal)
+   161→Task: Chasse aux redondances et répétitions sur toutes les pages publiques (accueil, analyses, fiche, performance, à propos).
+   162→
+   163→Work Log:
+   164→- Accueil : « 8 h UTC » ×2 (note hero tronquée à « Fenêtre glissante de 30 jours, recalculée en continu ») ; intro Philosophie rewordée (répétait le hero « publie le résultat final d'un travail mené en privé » → focus sur ce qui reste en coulisses) ; suppression du paragraphe sous l'échelle (répétait min 0,5 u / max 2 u des cartes) et de la note finale (répétait convergence/confiance des Piliers) ; KPI « Sports couverts 3 » (3e mention des sports) remplacé par « En attente de règlement » (compte réel)
+   165→- Performance : énumération complète de l'échelle ×2 → conservée uniquement dans la note de bas (intro : « l'échelle des mises appliquée selon le niveau de confiance »)
+   166→- Analyses : intro réduite à la phrase d'objet (le « 8 h UTC » restait dans la puce, le « suivi 30 jours » restait dans la note de sortie — plus de doublon intro/puces/note)
+   167→- Fiche analyse : suppression du chip « Mise appliquée : X » du panneau marché (doublait la colonne) ; barre de bas réduite au disclaimer (verdict et sport déjà en badges en tête) ; imports nettoyés (VERDICT_LABELS, Verdict, summarize inutilisés)
+   168→- À propos : principe « Mise calibrée par la confiance » rewordé sans réénumérer les 4 valeurs (le tableau du cadre fait foi)
+   169→- Vérifications : eslint OK, tsc 0 erreur src/ ; navigateur (innerText) — accueil : 8 h UTC ×1, « mené en privé » ×1, KPI En attente présent, notes résiduelles absentes ; analyses : 8 h UTC ×1, « 30 jours » ×1 ; performance : énumération échelle ×1 ; fiche : « Mise appliquée » ×2 (colonne + disclaimer, rôles distincts), chip supprimé, verdict non répété ; toutes pages 200 ; captures d'écran validées (fiche marché, légende accueil)
+   170→
+   171→Stage Summary:
+   172→- Toutes les pages publiques dédoublonnées : chaque information (8 h UTC, fenêtre 3 jours, suivi 30 jours, échelle des mises, mise d'une sélection, verdict/sport) n'apparaît qu'une fois par page, à l'endroit le plus pertinent
+   173→- KPI accueil enrichi (En attente de règlement remplace Sports couverts, redondant avec le badge hero et la section Couverture)
+   174→
+   175→---
+   176→Task ID: 10
+   177→Agent: Z.ai (agent principal)
+   178→Task: Rendre « Accès analyste » invisible pour le public avant publication du site.
+   179→
+   180→Work Log:
+   181→- État des lieux : le lien « Accès analyste » apparaissait à 3 endroits publics (nav desktop, menu mobile dans site-header.tsx, footer) ; la console est déjà protégée (layout admin/(protected) vérifie le cookie de session côté serveur + redirect /admin/login ; toutes les routes API admin — GET/POST picks, PATCH/DELETE picks/[id] — vérifient isAdmin)
+   182→- site-header.tsx : suppression des 2 liens (desktop + mobile) et de l'import ShieldCheck devenu inutilisé
+   183→- site-footer.tsx : suppression du lien de pied de page (nav réduite à 4 liens, grille 2×2)
+   184→- robots.txt : le fichier static public/robots.txt autorisait tout ; ajout de Disallow: /admin et /api pour tous les user-agents (Googlebot, Bingbot, Twitterbot, facebookexternalhit, *) ; robots.ts via App Router abandonné (conflit « conflicting public file and page » avec le fichier statique)
+   185→- Vérifications : eslint OK, tsc 0 erreur src/ ; curl — 0 occurrence de « Accès analyste » sur /, /analyses, /performance, /a-propos, /admin/login ; /admin renvoie 307 vers /admin/login ; /robots.txt servi correctement ; navigateur (1440px + 390px) — nav et footer = 4 liens publics uniquement, menu mobile propre, capture d'écran validée
+   186→
+   187→Stage Summary:
+   188→- Plus aucun lien admin visible depuis le site public ; accès conservé via URL directe /admin (redirigé vers /admin/login si non authentifié)
+   189→- /admin et /api exclus de l'indexation des moteurs de recherche (public/robots.txt)
+   190→
+   191→---
+   192→Task ID: 11
+   193→Agent: Z.ai (agent principal)
+   194→Task: Redémarrage du serveur après panne (page bloquée sur le logo).
+   195→
+   196→Work Log:
+   197→- Diagnostic : workspace /home/z/my-project réinitialisé par le sandbox ; projet survivant dans /tmp/my-project (src, db, worklog intacts) ; serveur arrêté, node_modules absent
+   198→- bun install complet (772 paquets, ~26 min, I/O sandbox ~110 fichiers/s) mais paquet next corrompu par une 1ère installation interrompue → réparé par copie depuis le cache bun (tar détaché, ~8 min) ; liens symboliques interdits dans le sandbox ; @next/env + @next/swc-linux-x64-{gnu,musl} + eslint-plugin-next restaurés depuis le cache (rapide, gros fichiers)
+   199→- Erreur persistante « Error code 14: Unable to open the database file » : cause racine = variable DATABASE_URL exportée globalement par le sandbox (file:/home/z/my-project/db/custom.db, ancien chemin), prime sur .env ; test direct Prisma OK (10 picks intacts)
+   200→- Ancien worker « next-server » survivant occupait le port 3000 (pkill -f « next dev » ne le matche pas car renommé) → kill par PID via ss -tlnp
+   201→- Purge cache .next (turbopack) puis démarrage avec surcharge explicite : DATABASE_URL=file:/tmp/my-project/db/custom.db bun run dev
+   202→- Vérifications : / /analyses /performance /a-propos = 200 ; /admin = 307 → /admin/login ; 10 picks en base ; protection admin et robots.txt intacts
+   203→
+   204→Stage Summary:
+   205→- Site de nouveau en ligne depuis /tmp/my-project ; commande de démarrage fiable : cd /tmp/my-project && DATABASE_URL=file:/tmp/my-project/db/custom.db bun run dev
+   206→- Le .env corrigé (file:/tmp/my-project/db/custom.db) ne suffit pas : la variable d'environnement globale du sandbox prime — toujours surcharger au lancement
+   207→
+   208→---
+   209→Task ID: 12
+   210→Agent: Z.ai (agent principal)
+   211→Task: Fournir le code source complet téléchargeable.
+   212→
+   213→Work Log:
+   214→- Création de INSTALL.txt (démarrage rapide, console analyste, variables d'environnement à définir avant publication, commandes Prisma/seed)
+   215→- Archive zip du projet depuis /tmp/my-project, exclusions : node_modules, .next, logs, worklog.md, captures d'écran de session, examples/, mini-services/, .config (fichier protégé sandbox)
+   216→- Archive vérifiée : 147 fichiers, 255 Ko, intégrité OK ; contient src/ (109 fichiers), prisma/, db/custom.db (10 picks), public/, bun.lock, configs, scripts/seed.ts
+   217→- Livrée dans /home/z/my-project/download/NODE47-source-code.zip
+   218→
+   219→Stage Summary:
+   220→- Code source complet + base de données + guide d'installation disponibles au téléchargement
+   221→
+   222→---
+   223→Task ID: 13
+   224→Agent: Z.ai (agent principal)
+   225→Task: Import d'une analyse collée (sections A–F) dans le formulaire admin avec pré-remplissage automatique.
+   226→
+   227→Work Log:
+   228→- Nouveau src/lib/analyze-import.ts : parseur 100 % client (aucune API/DB) — découpe en sections A à F, extraction des puces « • Label : corps », mapping vers les champs du formulaire ; date FR (mois français, 21h00, fuseaux UTC/GMT/CET/CEST/WET/WEST/EET/EEST → Date UTC puis datetime-local navigateur), détection sport par mots-clés, statistiques parsées en KeyStatItem (protection décimales 2,33 avant découpe), verdict JE JOUE / SOUS CONDITION, confiance (stripAccents), ligne normalisée (-1), cote 1.825 → "1.825" ; limites API respectées (summary/synthèse 3900 car., 12 points, troncature + warning)
+   229→- pick-form.tsx : bloc repliable « Importer depuis un texte » en tête de formulaire (textarea mono + Analyser et remplir + Effacer) ; Field enrichi d'un prop warn → pastille ambre « à vérifier » (date + cote après import, effacée dès modification manuelle) ; toast de bilan (n champs remplis · avertissements) ; fix : entité HTML dans placeholder JS, contextLine déclaré avant usage, filtrage par segments du contexte (jour de semaine / date / heure retirés, stade+arbitre conservés)
+   230→- Tests : unitaire bun run scripts/test-import.ts (16 champs remplis, 2 warnings attendus) ; E2E navigateur — connexion admin, collage du texte Porto–PSV réel (4 331 car.), champs vérifiés par eval (affiche, compétition, date 20:00 UTC, marché, sélection, ligne, cote, 2 badges) + combos (Football, Je joue, Élevé 1,5 u) + textareas (1780/763/139/644 car.) ; capture import-e2e-top.png validée
+   231→- eslint OK, tsc 0 erreur src/ ; fichiers maintenus en miroir dans /home/z/my-project/scripts/feature-src/ (sandbox : écriture directe /tmp impossible via Write) puis copiés vers /tmp/my-project
+   232→
+   233→Stage Summary:
+   234→- L'analyste peut coller une analyse complète structurée A–F : le formulaire se pré-remplit et signale date/cote « à vérifier » ; la saisie manuelle reste intégrale
+   235→- Prochaine étape planifiée : lot SEO & partage (metadataBase, OG/Twitter, generateMetadata fiche, sitemap.xml, image OG), badge NOUVEAU, navigation fiches, compte 8 h UTC
+   236→---
+   237→Task ID: 14
+   238→Agent: Z.ai (agent principal)
+   239→Task: Lot SEO & partage validé — metadata Open Graph/Twitter, sitemap.xml, images OG (marque + fiche dynamique).
+   240→
+   241→Work Log:
+   242→- src/lib/site.ts (nouveau) : SITE_NAME, getSiteUrl() (NEXT_PUBLIC_SITE_URL sans slash final, repli localhost:3000), truncateForMeta() (~155 car., coupure de mot)
+   243→- layout racine : metadataBase, applicationName, openGraph complet (locale fr_FR, siteName), twitter card summary_large_image ; title/description/keywords conservés
+   244→- File conventions OG : src/app/opengraph-image.tsx (marque 1200×630, filigrane « 47 », satori/next-og) héritée par toutes les pages ; src/app/(site)/analyses/[id]/opengraph-image.tsx (fiche dynamique : affiche, marché @cote, chips verdict + confiance, LALIGA, CTA « Lire l'analyse complète ») — brouillons/inconnus → visuel neutre, aucune fuite
+   245→- Fiche /analyses/[id] : generateMetadata (title « Match — Marché · Sélection », description ~155 car. avec confiance accordée au féminin, canonical /analyses/[id], og:type article + publishedTime, twitter card) ; brouillon/introuvable → « Analyse introuvable » + noindex
+   246→- Canonicals relatifs sur toutes les pages publiques : / , /analyses, /performance, /a-propos, fiches
+   247→- public/robots.txt supprimé (conflit) → src/app/robots.ts : Allow / + Disallow /admin,/api + ligne Sitemap (URL canonique)
+   248→- src/app/sitemap.ts (force-dynamic, DB jamais interrogée au build, try/catch repli statique) : 4 pages statiques + 10 fiches publiées (lastmod updatedAt) — 14 URLs vérifiées
+   249→- Noindex défensif : metadata robots sur admin/(protected)/layout.tsx + nouveau admin/login/layout.tsx
+   250→- INSTALL.txt : NEXT_PUBLIC_SITE_URL (avant build) + section « SEO & PARTAGE »
+   251→- Correctif lint : countdown migré de useEffect/setState vers useSyncExternalStore (règle react-hooks/set-state-in-effect)
+   252→
+   253→Stage Summary:
+   254→- curl : og:image 1200×630 sur accueil + fiches (PNG vérifiés, 108-116 Ko), canonicals sur 5 types de pages, robots.txt avec Sitemap, sitemap 14 URLs
+   255→- Fiche : title/description/canonical/article OK ; 404 → noindex auto ; images OG servies avec hash de cache
+   256→- eslint 0 erreur, tsc src/ 0 erreur, console navigateur propre, dev.log sans erreur
+   257→
+   258→---
+   259→Task ID: 15
+   260→Agent: Z.ai (agent principal)
+   261→Task: 3 améliorations secondaires validées — badge « Nouveau », navigation fiches, compte à rebours 8 h UTC.
+   262→
+   263→Work Log:
+   264→- src/lib/picks.ts : isFromTodayEdition(publishedAt, now) — même jour d'édition que now (bascule automatique à 8 h UTC via editionDayOf)
+   265→- pick-card.tsx : pastille or « ● Nouveau » (border-primary/40, point bg-primary) dans l'en-tête droit des cartes, avant le badge de résultat — visible accueil, /analyses, analyses liées ; titre explicatif au survol
+   266→- Fiche : nav « ← Analyse précédente / Analyse suivante → » en bas (grille 2 col., voisins dans l'ordre de publication asc, toutes éditions ; côtés vides masqués) ; test de clic : Real Sociedad → Atalanta (édition suivante) OK
+   267→- src/components/next-edition-countdown.tsx (client) : « Prochaines analyses à 8 h UTC — dans X h YY min (HH:MM, heure locale) », horloge useSyncExternalStore (tick 30 s, snapshot stable), rendu serveur neutre puis hydratation sans mismatch ; inséré sous le disclaimer de chaque fiche (avant « Autres analyses »)
+   268→- Vérifications navigateur (1440 px + 390 px) : 4 badges sur /analyses (édition 20/10 en cours), 3 sur l'accueil (3 dernières), Arsenal (19/10) sans badge — logique d'édition exacte ; countdown hydraté « dans 1 h 28 min (08:00, heure locale) » ; pas de scroll horizontal mobile ; captures seo-home-badge.png, seo-analyses-mobile.png, seo-fiche-nav-countdown.png, seo-fiche-countdown.png, og-marque.png, og-fiche.png
+   269→
+   270→Stage Summary:
+   271→- Badge « Nouveau » : marque visuellement les sélections de l'édition en cours, bascule seule à 8 h UTC
+   272→- Navigation précédente/suivante en bas de chaque fiche, dans l'ordre de publication
+   273→- Compte à rebours de la prochaine édition sous chaque fiche, heure locale du visiteur
+   274→- Lot SEO (Task 14) + secondaires (Task 15) livrés et vérifiés de bout en bout ; prochaine étape planifiée : Task 16 déploiement (Docker + Vercel)
+   275→

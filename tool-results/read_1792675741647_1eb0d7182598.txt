@@ -1,0 +1,1095 @@
+     1→import type { KeyStatItem } from "@/lib/picks";
+     2→
+     3→/* =============================================================
+     4→   Import d'une analyse rédigée (format NODE.47, sections A à G)
+     5→   → pré-remplissage du formulaire admin. 100 % côté client,
+     6→   sans effet de bord : l'analyste relit et ajuste ensuite.
+     7→
+     8→   Tolérant aux variantes de mise en forme :
+     9→   - gras markdown **…**, titres ##, puces « • », « - », « – », « — », « * »
+    10→   - séparateur sport/compétition « / », « – », « — » ou « - »
+    11→   - listes imbriquées (sous-puces) ou paragraphes continus
+    12→   - synthèse finale en section G (prioritaire) ou blocs F/E
+    13→   - dictionnaire de compétitions connues (Ligue 1, NBA, EuroLeague,
+    14→     WTA 1000, ATP Masters 1000, LaLiga, Premier League…)
+    15→   ============================================================= */
+    16→
+    17→export interface ImportedValues {
+    18→  sport?: string;
+    19→  competition?: string;
+    20→  matchName?: string;
+    21→  matchDate?: string; // format datetime-local
+    22→  scenarioSummary?: string;
+    23→  keyPoints?: string;
+    24→  alternativeScenario?: string;
+    25→  keyStats?: KeyStatItem[];
+    26→  market?: string;
+    27→  selection?: string;
+    28→  line?: string;
+    29→  odds?: string;
+    30→  verdict?: string;
+    31→  confidence?: string;
+    32→  condition?: string;
+    33→  synthesis?: string;
+    34→}
+    35→
+    36→export interface ImportReport {
+    37→  values: ImportedValues;
+    38→  filled: string[];
+    39→  warnings: string[];
+    40→  parseErrors: string[];
+    41→}
+    42→
+    43→const MONTHS: Record<string, number> = {
+    44→  janvier: 1, janv: 1, fevrier: 2, février: 2, fev: 2, mars: 3, avril: 4,
+    45→  mai: 5, juin: 6, juillet: 7, juil: 7, aout: 8, août: 8, septembre: 9,
+    46→  sept: 9, octobre: 10, oct: 10, novembre: 11, nov: 11, decembre: 12,
+    47→  décembre: 12, dec: 12,
+    48→};
+    49→
+    50→const TZ_OFFSETS: Record<string, number> = {
+    51→  UTC: 0, GMT: 0, WET: 0, WEST: 1, CET: 1, CEST: 2, EET: 2, EEST: 3,
+    52→  EST: -5, EDT: -4, CST: -6, CDT: -5, MST: -7, MDT: -6, PST: -8, PDT: -7,
+    53→};
+    54→
+    55→/** Compétitions connues : libellé canonique utilisé sur les cartes publiques. */
+    56→const COMPETITIONS: { re: RegExp; label: string; sport?: string }[] = [
+    57→  // Tennis (les plus spécifiques d'abord)
+    58→  { re: /\batp\s*masters\s*1000\b|\bmasters\s*1000\b/, label: "ATP Masters 1000", sport: "TENNIS" },
+    59→  { re: /\bwta\s*1000\b/, label: "WTA 1000", sport: "TENNIS" },
+    60→  { re: /\batp\s*finals\b|\bnitto\s*atp\s*finals\b/, label: "ATP Finals", sport: "TENNIS" },
+    61→  { re: /\bwta\s*finals\b/, label: "WTA Finals", sport: "TENNIS" },
+    62→  { re: /\batp\s*500\b/, label: "ATP 500", sport: "TENNIS" },
+    63→  { re: /\bwta\s*500\b/, label: "WTA 500", sport: "TENNIS" },
+    64→  { re: /\batp\s*250\b/, label: "ATP 250", sport: "TENNIS" },
+    65→  { re: /\bwta\s*250\b/, label: "WTA 250", sport: "TENNIS" },
+    66→  { re: /\broland[\s-]*garros\b/, label: "Roland-Garros", sport: "TENNIS" },
+    67→  { re: /\bwimbledon\b/, label: "Wimbledon", sport: "TENNIS" },
+    68→  { re: /\bus\s*open\b/, label: "US Open", sport: "TENNIS" },
+    69→  { re: /\baustralian\s*open\b|\bopen\s*d['']australie\b/, label: "Open d'Australie", sport: "TENNIS" },
+    70→  { re: /\bcoupe\s*davis\b|\bdavis\s*cup\b/, label: "Coupe Davis", sport: "TENNIS" },
+    71→  { re: /\bunited\s*cup\b/, label: "United Cup", sport: "TENNIS" },
+    72→  { re: /\bgrand\s*chelem\b|\bgrand\s*slam\b/, label: "Grand Chelem", sport: "TENNIS" },
+    73→  { re: /\bchallenger\b/, label: "Challenger", sport: "TENNIS" },
+    74→  // Basketball
+    75→  { re: /\beuroleague\b|\beuro\s*league\b/, label: "EuroLeague", sport: "BASKETBALL" },
+    76→  { re: /\bwnba\b/, label: "WNBA", sport: "BASKETBALL" },
+    77→  { re: /\bnba\b/, label: "NBA", sport: "BASKETBALL" },
+    78→  { re: /\beurocoupe\b|\beurocup\b|\beuro\s*cup\b/, label: "EuroCoupe", sport: "BASKETBALL" },
+    79→  { re: /\bbetclic\s*elite\b|\bpro\s*a\b/, label: "Betclic Élite", sport: "BASKETBALL" },
+    80→  { re: /\bliga\s*acb\b|\bacb\b/, label: "Liga ACB", sport: "BASKETBALL" },
+    81→  { re: /\bncaa\b/, label: "NCAA", sport: "BASKETBALL" },
+    82→  { re: /\beurobasket\b/, label: "EuroBasket", sport: "BASKETBALL" },
+    83→  // Football (ligues majeures d'abord, puis coupes)
+    84→  { re: /\bligue\s*des\s*champions\b|\bchampions\s*league\b|\bucl\b/, label: "Ligue des Champions", sport: "FOOTBALL" },
+    85→  { re: /\bligue\s*europa\b|\beuropa\s*league\b/, label: "Ligue Europa", sport: "FOOTBALL" },
+    86→  { re: /\bconference\s*league\b|\bligue\s*conference\b/, label: "Ligue Conférence", sport: "FOOTBALL" },
+    87→  { re: /\bcoupe\s*du\s*monde\b|\bworld\s*cup\b/, label: "Coupe du Monde", sport: "FOOTBALL" },
+    88→  { re: /\bcopa\s*america\b/, label: "Copa América", sport: "FOOTBALL" },
+    89→  { re: /\bligue\s*des\s*nations\b|\bnations\s*league\b/, label: "Ligue des Nations", sport: "FOOTBALL" },
+    90→  { re: /\bpremier\s*league\b|\bepl\b/, label: "Premier League", sport: "FOOTBALL" },
+    91→  { re: /\bla\s*liga\b|\blaliga\b|\bliga\s*espanola\b/, label: "LaLiga", sport: "FOOTBALL" },
+    92→  { re: /\bbrasileirao\b|\bcampeonato\s*brasileiro\b/, label: "Brasileirão", sport: "FOOTBALL" },
+    93→  { re: /\bserie\s*a\b/, label: "Serie A", sport: "FOOTBALL" },
+    94→  { re: /\bbundesliga\b/, label: "Bundesliga", sport: "FOOTBALL" },
+    95→  { re: /\bligue\s*1\b/, label: "Ligue 1", sport: "FOOTBALL" },
+    96→  { re: /\bligue\s*2\b/, label: "Ligue 2", sport: "FOOTBALL" },
+    97→  { re: /\beredivisie\b/, label: "Eredivisie", sport: "FOOTBALL" },
+    98→  { re: /\bprimeira\s*liga\b|\bliga\s*portugal\b/, label: "Primeira Liga", sport: "FOOTBALL" },
+    99→  { re: /\bcoupe\s*de\s*france\b/, label: "Coupe de France", sport: "FOOTBALL" },
+   100→  { re: /\bfa\s*cup\b/, label: "FA Cup", sport: "FOOTBALL" },
+   101→  { re: /\bcarabao\s*cup\b|\bcoupe\s*de\s*la\s*ligue\b/, label: "Carabao Cup", sport: "FOOTBALL" },
+   102→  { re: /\bcopa\s*del\s*rey\b/, label: "Copa del Rey", sport: "FOOTBALL" },
+   103→  { re: /\bcoppa\s*italia\b/, label: "Coppa Italia", sport: "FOOTBALL" },
+   104→  { re: /\bdfb\s*pokal\b/, label: "DFB Pokal", sport: "FOOTBALL" },
+   105→  { re: /\bmls\b/, label: "MLS", sport: "FOOTBALL" },
+   106→  { re: /\bliga\s*mx\b/, label: "Liga MX", sport: "FOOTBALL" },
+   107→  { re: /\bsaudi\s*pro\s*league\b/, label: "Saudi Pro League", sport: "FOOTBALL" },
+   108→  { re: /\bjupiler\s*pro\s*league\b/, label: "Jupiler Pro League", sport: "FOOTBALL" },
+   109→  { re: /\bscottish\s*premiership\b/, label: "Scottish Premiership", sport: "FOOTBALL" },
+   110→  { re: /\bchampionship\b/, label: "Championship", sport: "FOOTBALL" },
+   111→  { re: /\bsuper\s*lig\b/, label: "Süper Lig", sport: "FOOTBALL" },
+   112→  { re: /\bpro\s*league\b/, label: "Pro League", sport: "FOOTBALL" },
+   113→  { re: /\btop\s*14\b/, label: "Top 14" },
+   114→  { re: /\beuro\b(?!vision)/, label: "Euro", sport: "FOOTBALL" },
+   115→];
+   116→
+   117→const MAX_SUMMARY = 3900;
+   118→const MAX_SYNTHESIS = 3900;
+   119→const MAX_POINTS = 12;
+   120→
+   121→/* ---------- Étiquettes connues (recherche insensible aux accents) ---------- */
+   122→
+   123→/** « marché » → « m[aàâ]rch[éeèê] » : permet de reconnaître les étiquettes
+   124→    quel que soit le clavier / la mise en forme d'origine. */
+   125→function accentPat(s: string): string {
+   126→  return s
+   127→    .replace(/e/g, "[eéèêë]")
+   128→    .replace(/a/g, "[aàâ]")
+   129→    .replace(/i/g, "[iîï]")
+   130→    .replace(/o/g, "[oôö]")
+   131→    .replace(/u/g, "[uùûü]")
+   132→    .replace(/c/g, "[cç]");
+   133→}
+   134→
+   135→const FLAT_LABELS = [
+   136→  "match", "rencontre", "affiche", "evenement", "sport", "competition",
+   137→  "date et heure", "date du match", "date", "heure", "heure du match", "jour",
+   138→  "equipe superieure", "joueur superieur", "marche", "market", "marche retenu",
+   139→  "pari retenu", "type de pari",
+   140→  "selection", "pronostic", "pronostic final", "pari", "choix", "pick", "ligne",
+   141→  "cote", "cotes", "cote finale", "verdict", "decision", "confiance",
+   142→  "niveau de confiance", "indice de confiance", "mise", "stake",
+   143→  "etat des informations", "informations", "sources", "bookmaker", "bookmakers",
+   144→  "note", "notes", "remarque", "remarques",
+   145→];
+   146→const FLAT_LABEL_ALT = FLAT_LABELS.map((l) => accentPat(l).replace(/ /g, "\\s+")).join("|");
+   147→/** Garde de fin d'étiquette : optionnellement un « s » de pluriel, puis un
+   148→    caractère non-lettre. On n'utilise PAS \b car les lettres accentuées
+   149→    (é, è…) ne sont pas des \\w — « Marché : » échouerait. */
+   150→const LABEL_TAIL = "(?:s)?(?![A-Za-zÀ-ÿ])";
+   151→/** « Label : valeur » — tolère des mots intercalaires entre le label et « : »
+   152→    (ex. « Sport / compétition : », « Cote observée : », « Ligne si disponible : »). */
+   153→const LABEL_LINE_RE = new RegExp(
+   154→  `^(?:[-–—•*]\\s*)?(${FLAT_LABEL_ALT})${LABEL_TAIL}[^:\\n]{0,48}?\\s*[:\\-–—]\\s*(.+)$`,
+   155→  "i"
+   156→);
+   157→const STOP_LABEL_RE = new RegExp(`(?=\\s*(?:${FLAT_LABEL_ALT})${LABEL_TAIL}[^:\\n]{0,48}?\\s*[:\\-–—])`, "i");
+   158→
+   159→function stripAccents(s: string): string {
+   160→  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+   161→}
+   162→
+   163→/** Date -> "YYYY-MM-DDTHH:mm" (heure locale du navigateur, comme input datetime-local) */
+   164→function toDatetimeLocal(d: Date): string {
+   165→  const pad = (n: number) => String(n).padStart(2, "0");
+   166→  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${d.getDate().toString().padStart(2, "0")}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+   167→}
+   168→
+   169→function cleanText(s: string): string {
+   170→  return s.replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+   171→}
+   172→
+   173→/** Retire le markdown en ligne (gras, titres), les émojis d'ornement en
+   174→    début/fin de ligne (⚽ 📌 🎯 … collages ChatGPT/WhatsApp) et unifie
+   175→    les espaces insécables. Les puces (• - – — * ‣ ▪ ◦) sont préservées. */
+   176→const ORNAMENT = "\\u{1F000}-\\u{1FAFF}\\u{2600}-\\u{27BF}\\u{2B00}-\\u{2BFF}\\u{FE0F}\\u{200D}\\u{20E3}";
+   177→const LEAD_ORNAMENT_RE = new RegExp(`^[\\s\\uFEFF]*(?:[${ORNAMENT}][\\u{FE0F}\\u{200D}\\u{20E3}]*\\s*)+`, "u");
+   178→const TRAIL_ORNAMENT_RE = new RegExp(`(?:\\s*[${ORNAMENT}][\\u{FE0F}\\u{200D}\\u{20E3}]*)+[\\s\\uFEFF]*$`, "u");
+   179→/** Ligne purement décorative (séparateurs ═ ─ --- ___ …) : ignorée. */
+   180→const DECOR_LINE_RE = /^[\s=\-–—_~†‡§|│┄┅═━┌┐└┘]{3,}$/u;
+   181→
+   182→function stripInline(line: string): string {
+   183→  return line
+   184→    .replace(/\u00a0|\u202f/g, " ")
+   185→    .replace(/^\s*#{1,6}\s*/, "")
+   186→    .replace(/\*\*/g, "")
+   187→    .replace(/__/g, "")
+   188→    .replace(LEAD_ORNAMENT_RE, "")
+   189→    .replace(TRAIL_ORNAMENT_RE, "")
+   190→    .replace(/[ \t]+$/g, "");
+   191→}
+   192→
+   193→function capText(s: string, max: number, warnings: string[], what: string): string {
+   194→  if (s.length <= max) return s;
+   195→  warnings.push(`${what} tronqué (limite ${max + 1} caractères)`);
+   196→  return s.slice(0, max) + "…";
+   197→}
+   198→
+   199→/* ---------- Découpe en sections ---------- */
+   200→
+   201→// Mots-clés de titres de sections, dans l'ordre canonique A → G.
+   202→// Sert à reconnaître les en-têtes même SANS lettre (numérotés « 1. »,
+   203→// chiffres romains « IV. » ou sans aucun préfixe) — l'ordre tranche.
+   204→// Articles optionnels tolérés devant le mot-clé (« Le marché retenu »,
+   205→// « Notre verdict », « La synthèse »…).
+   206→const ARTICLE_PREFIX = "^(?:le\\s+|la\\s+|les\\s+|notre\\s+|nos\\s+)?";
+   207→const ORDER_KEYWORDS: [RegExp, string][] = [
+   208→  [new RegExp(ARTICLE_PREFIX + "(match|rencontre|affiche)(\\s+(et|&|–|-|—)\\s+)?(contexte|enjeu)?"), "A"],
+   209→  [new RegExp(ARTICLE_PREFIX + "scenario(\\s+sportif)?"), "B"],
+   210→  [new RegExp(ARTICLE_PREFIX + "(convergence|preuves|statistiques\\s+et\\s+donnees)"), "C"],
+   211→  [new RegExp(ARTICLE_PREFIX + "comparaison"), "D"],
+   212→  [new RegExp(ARTICLE_PREFIX + "marche(s)?(\\s+(retenu|choisi|conseille))?(\\s+retenu)?\\s*$"), "E"],
+   213→  [new RegExp(ARTICLE_PREFIX + "(?:verdict|decision\\s+finale)"), "F"],
+   214→  [new RegExp(ARTICLE_PREFIX + "(synthese|conclusion|decision\\s+finale)"), "G"],
+   215→];
+   216→
+   217→const SECTION_KEYWORDS = [
+   218→  "match et contexte",
+   219→  "match & contexte",
+   220→  "rencontre et contexte",
+   221→  "scenario sportif",
+   222→  "convergence des preuves",
+   223→  "convergence",
+   224→  "comparaison des marches",
+   225→  "comparaison",
+   226→  "marche retenu",
+   227→  "verdict",
+   228→  "synthese",
+   229→  "decision finale",
+   230→];
+   231→
+   232→function isSectionTitle(text: string): boolean {
+   233→  const t = stripAccents(text)
+   234→    .toLowerCase()
+   235→    .replace(/[^a-z& ]+/g, " ")
+   236→    .replace(/\s+/g, " ")
+   237→    .replace(/^(?:le|la|les|notre|nos)\s+/, "")
+   238→    .trim();
+   239→  return SECTION_KEYWORDS.some((k) => t.startsWith(k));
+   240→}
+   241→
+   242→/** Découpe le texte en sections nommées (A à H). Accepte :
+   243→ *  - lettres « A. / B) / C - » (majuscules ou minuscules, avec ou sans gras)
+   244→ *  - numérotation quelconque « 1. 2. » « I. II. » si le titre est reconnu
+   245→ *  - titres nus « MATCH ET CONTEXTE » sans aucun préfixe
+   246→ *  Sans en-têtes reconnaissables → tout dans "ALL" (remplissage par étiquettes). */
+   247→function splitSections(text: string): Record<string, string> {
+   248→  const lines = cleanText(text).split("\n");
+   249→  const sections: Record<string, string[]> = { ALL: [] };
+   250→  let current = "ALL";
+   251→  const headerRe = /^\s*([A-Ha-h])\s*[.)\]:\-–—]\s*(.+?)\s*$/;
+   252→  const bulletRe = /^\s*[•‣▪◦*\-–—]\s+/;
+   253→  for (const line of lines) {
+   254→    const stripped = stripInline(line);
+   255→    if (!stripped || DECOR_LINE_RE.test(stripped)) continue; // vide / décoratif
+   256→    const m = stripped.match(headerRe);
+   257→    const letters = m ? m[2].replace(/[^A-Za-zÀ-ÿ]/g, "") : "";
+   258→    const isHeader =
+   259→      !!m && letters.length > 2 && (letters === letters.toUpperCase() || isSectionTitle(m[2]));
+   260→    if (isHeader && m) {
+   261→      current = m[1].toUpperCase();
+   262→      if (!sections[current]) sections[current] = [];
+   263→      continue;
+   264→    }
+   265→    // En-tête sans lettre reconnue (numéroté ou nu) : titre court, pas de puce,
+   266→    // pas de « : » — la position dans l'ordre canonique tranche la section.
+   267→    // Pour une ligne NUMÉROTÉE (« 2. Convergence… »), le titre doit rester très
+   268→    // court : au-delà, c'est presque toujours une raison/liste, pas un titre.
+   269→    const numberedRe = /^\s*(?:\d{1,2}|[ivxlIVXL]{1,5})\s*[.)\]:\-–—]/;
+   270→    const maxTitle = numberedRe.test(stripped) ? 45 : 80;
+   271→    if (!bulletRe.test(stripped) && !/:/.test(stripped) && stripped.length < maxTitle) {
+   272→      const t = stripAccents(stripped)
+   273→        .toLowerCase()
+   274→        .replace(/^\s*(?:\d{1,2}|[ivxlIVXL]{1,5})\s*[.)\]:\-–—]?\s*/, "")
+   275→        .replace(/\s+/g, " ")
+   276→        .trim();
+   277→      const hit = ORDER_KEYWORDS.find(([re]) => re.test(t));
+   278→      if (hit) {
+   279→        current = hit[1];
+   280→        if (!sections[current]) sections[current] = [];
+   281→        continue;
+   282→      }
+   283→    }
+   284→    sections[current].push(stripped);
+   285→  }
+   286→  const out: Record<string, string> = {};
+   287→  for (const [k, v] of Object.entries(sections)) out[k] = v.join("\n").trim();
+   288→  return out;
+   289→}
+   290→
+   291→/** Découpe une section en puces « Label : corps » (•, -, –, —, *) ; les lignes
+   292→    simples sont rattachées à la puce précédente (continuation / sous-listes). */
+   293→function parseBullets(section: string): { label: string; body: string }[] {
+   294→  const lines = cleanText(section).split("\n");
+   295→  const bullets: { label: string; body: string }[] = [];
+   296→  const bulletRe = /^\s*[•‣▪◦*\-–—]\s+(.*)$/;
+   297→  for (const line of lines) {
+   298→    if (DECOR_LINE_RE.test(line.trim())) continue; // séparateur décoratif
+   299→    const m = line.match(bulletRe);
+   300→    if (m) {
+   301→      const t = m[1].trim();
+   302→      const ci = t.indexOf(":");
+   303→      if (ci > 0 && ci < 80) {
+   304→        bullets.push({ label: t.slice(0, ci).trim(), body: t.slice(ci + 1).trim() });
+   305→      } else {
+   306→        bullets.push({ label: "", body: t });
+   307→      }
+   308→    } else if (line.trim()) {
+   309→      const t = line.trim();
+   310→      // Ligne « Label : valeur » SANS puce (collage sans mise en forme) :
+   311→      // traitée comme une puce étiquetée plutôt que comme du prose perdue.
+   312→      const lm = t.match(LABEL_LINE_RE);
+   313→      if (lm) {
+   314→        bullets.push({ label: lm[1].trim(), body: lm[2].replace(STOP_LABEL_RE, "").trim() });
+   315→      } else if (bullets.length) {
+   316→        bullets[bullets.length - 1].body += `\n${t}`;
+   317→      } else {
+   318→        bullets.push({ label: "", body: t });
+   319→      }
+   320→    }
+   321→  }
+   322→  return bullets;
+   323→}
+   324→
+   325→function normLabel(label: string): string {
+   326→  return stripAccents(label).toLowerCase().replace(/\s+/g, " ").trim();
+   327→}
+   328→
+   329→function findBullet(bullets: { label: string; body: string }[], re: RegExp) {
+   330→  return bullets.find((b) => re.test(normLabel(b.label)));
+   331→}
+   332→
+   333→/** Items d'une liste de raisons : sous-puces / lignes numérotées, segments
+   334→    séparés par « ; », sinon phrases. */
+   335→function splitReasons(body: string): string[] {
+   336→  const lines = body
+   337→    .split("\n")
+   338→    .map((l) => l.replace(/^\s*[-–—•*]\s*/, "").replace(/^\d+\s*[.)]\s*/, "").trim())
+   339→    .filter(Boolean);
+   340→  if (lines.length > 1) return lines;
+   341→  const flat = body.replace(/\s+/g, " ").trim();
+   342→  if (!flat) return [];
+   343→  const semi = flat
+   344→    .split(/\s*;\s*/)
+   345→    .map((s) => s.trim())
+   346→    .filter((s) => s.replace(/\W/g, "").length >= 12);
+   347→  if (semi.length > 1) return semi;
+   348→  if (flat.length <= 220) return [flat];
+   349→  const sentences = flat
+   350→    .split(/(?<=[.!?])\s+/)
+   351→    .map((s) => s.trim())
+   352→    .filter((s) => s.length >= 24);
+   353→  return sentences.length > 1 ? sentences : [flat];
+   354→}
+   355→
+   356→/* ---------- Compétition & sport ---------- */
+   357→
+   358→function cleanCompetitionLabel(s: string): string {
+   359→  return s
+   360→    .replace(/\([^)]*\)/g, " ")
+   361→    .split(/[,;]/)[0]
+   362→    .replace(/\s+/g, " ")
+   363→    .trim()
+   364→    .replace(/[.。]+\s*$/, "");
+   365→}
+   366→
+   367→function extractCompetition(body: string): { competition?: string; sportHint?: string } {
+   368→  const flat = stripAccents(body).toLowerCase().replace(/\s+/g, " ");
+   369→  for (const c of COMPETITIONS) {
+   370→    if (c.re.test(flat)) return { competition: c.label, sportHint: c.sport };
+   371→  }
+   372→  // Repli : partie après le séparateur « / » puis « – » / « — » / « - »
+   373→  let tail = "";
+   374→  const slashParts = body.split(/\s*\/\s*/);
+   375→  if (slashParts.length > 1) tail = slashParts.slice(1).join(" / ");
+   376→  if (!tail) {
+   377→    const dashParts = body.split(/\s+[–—-]\s+/);
+   378→    if (dashParts.length > 1) tail = dashParts.slice(1).join(" — ");
+   379→  }
+   380→  if (!tail) return {};
+   381→  tail = cleanCompetitionLabel(tail);
+   382→  if (tail.length >= 3 && tail.length <= 80) return { competition: tail };
+   383→  return {};
+   384→}
+   385→
+   386→/* ---------- Date & heure ---------- */
+   387→
+   388→function parseMatchDate(body: string, warnings: string[]): string | undefined {
+   389→  const flat = body.replace(/\n/g, " ");
+   390→  const monthKeys = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join("|");
+   391→
+   392→  // Format littéraire : « 17 octobre 2026 » / « 3 novembre 2025 »
+   393→  let day: number | undefined;
+   394→  let month: number | undefined;
+   395→  let year: number | undefined;
+   396→  const dm = flat.match(new RegExp(`(\\d{1,2})(?:er)?\\s+(${monthKeys})\\s+(\\d{4})`, "i"));
+   397→  if (dm) {
+   398→    day = parseInt(dm[1], 10);
+   399→    month = MONTHS[dm[2].toLowerCase()];
+   400→    year = parseInt(dm[3], 10);
+   401→  } else {
+   402→    // Formats numériques : 17/10/2026, 17-10-2026, 17.10.2026, 2026-10-17
+   403→    const ymd = flat.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/);
+   404→    const dmy = ymd ? undefined : flat.match(/\b(\d{1,2})[/.‐-](\d{1,2})[/.‐-](\d{4})\b/);
+   405→    const parts = ymd ?? dmy;
+   406→    if (parts) {
+   407→      const a = parseInt(parts[1], 10);
+   408→      const b = parseInt(parts[2], 10);
+   409→      const c = parseInt(parts[3], 10);
+   410→      if (ymd) {
+   411→        year = a; month = b; day = c;
+   412→      } else {
+   413→        // Ambiguïté jour/mois : la valeur > 12 désigne forcément le jour
+   414→        day = a > 12 ? a : b > 12 ? b : a;
+   415→        month = day === a ? b : a;
+   416→        year = c;
+   417→      }
+   418→    }
+   419→  }
+   420→  if (day === undefined || month === undefined || year === undefined) return undefined;
+   421→  if (month < 1 || month > 12 || day < 1 || day > 31) return undefined;
+   422→
+   423→  let hour = 12;
+   424→  let minute = 0;
+   425→  const tm = flat.match(/(\d{1,2})\s*[h:]\s*(\d{2})?/i);
+   426→  let hasTime = false;
+   427→  if (tm) {
+   428→    hour = parseInt(tm[1], 10);
+   429→    minute = tm[2] ? parseInt(tm[2], 10) : 0;
+   430→    hasTime = true;
+   431→  }
+   432→
+   433→  const tzm = flat.match(
+   434→    /\b(CEST|CETE?|WEST|WET|EEST|EET|PDT|PST|MDT|MST|CDT|CST|EDT|EST|UTC|GMT)\b/i
+   435→  );
+   436→  let offset = 0;
+   437→  if (tzm) {
+   438→    offset = TZ_OFFSETS[tzm[1].toUpperCase()] ?? 0;
+   439→  } else {
+   440→    warnings.push("fuseau horaire non détecté — heure lue comme UTC, vérifiez la date");
+   441→  }
+   442→  if (!hasTime) {
+   443→    warnings.push("heure du match non détectée — 12 h placée par défaut");
+   444→  }
+   445→
+   446→  const utcMs = Date.UTC(year, month - 1, day, hour, minute) - offset * 3_600_000;
+   447→  return toDatetimeLocal(new Date(utcMs));
+   448→}
+   449→
+   450→/* ---------- Statistiques clés (section C) ---------- */
+   451→
+   452→/**
+   453→ * Extraction prudente : seules les statistiques « propres » sont conservées
+   454→ * (étiquette courte et lisible devant le nombre, ou étiquette après « : »).
+   455→ * Les fragments de prose sont ignorés (comptés dans `skipped`) afin de ne pas
+   456→ * polluer le public — le texte brut reste disponible dans le scénario.
+   457→ */
+   458→function parseKeyStats(body: string): { stats: KeyStatItem[]; skipped: number } {
+   459→  // Protège les décimales (2,33) avant découpe sur les virgules
+   460→  const flat = body.replace(/\s+/g, " ").replace(/(\d),(\d)/g, "$1\u0001$2");
+   461→  const clauses = flat
+   462→    .split(/\s*[;.]\s+|\s*[;]\s*|\s*,\s+/)
+   463→    .map((c) => c.replace(/\u0001/g, ",").trim())
+   464→    .filter((c) => stripAccents(c).length >= 6);
+   465→
+   466→  const stats: KeyStatItem[] = [];
+   467→  let skipped = 0;
+   468→  for (const clause of clauses) {
+   469→    if (stats.length >= MAX_POINTS) break;
+   470→    const ci = clause.indexOf(":");
+   471→    const base = ci > 0 ? clause.slice(ci + 1) : clause;
+   472→
+   473→    /* Score « N-N » (H2H 6-1, bilan 3-2…) : motif dédié, AVANT le nombre
+   474→       générique, pour éviter la lecture partielle « 6 ». Gardes anti-faux
+   475→       positifs : pas de chiffre/point/virgule/%% collé autour (exclut les
+   476→       plages décimales « 0,98-1,13 »). */
+   477→    const scoreRe = /(?<![\d.,%])(\d{1,3})\s*[-–]\s*(\d{1,3})(?![\d.,%])/;
+   478→    const sm = base.match(scoreRe);
+   479→    if (sm && sm.index !== undefined) {
+   480→      const before = base.slice(0, sm.index).trim();
+   481→      if (
+   482→        before.length >= 2 && before.length <= 48 &&
+   483→        !before.includes("(") && /[A-Za-zÀ-ÿ]/.test(before)
+   484→      ) {
+   485→        const after = base.slice(sm.index + sm[0].length).trim();
+   486→        const detail = after.replace(/^[\s,%–—-]+/, "").split("(")[0].trim();
+   487→        stats.push({
+   488→          label: before.replace(/[\s:;,–—-]+$/, "").slice(0, 120),
+   489→          value: `${sm[1]}-${sm[2]}`.slice(0, 60),
+   490→          ...(detail && detail !== before ? { detail: detail.slice(0, 300) } : {}),
+   491→        });
+   492→        continue;
+   493→      }
+   494→    }
+   495→
+   496→    const numRe = /([+\-−~]?\s?\d[\d\u0001\u202f ]*(?:[.,]\d+)?)/;
+   497→    const nm = base.match(numRe);
+   498→    if (!nm) continue;
+   499→    const after = base.slice((nm.index ?? 0) + nm[0].length).trim();
+   500→    const unit = after.match(/^(%|u\b|buts?|jeux?|points?|pts?\b|match(?:e)?s?|set|sets|aces?|fautes?)/i);
+   501→    const unitTxt = unit ? unit[0] : "";
+   502→    const numStr = nm[0].replace(/\u0001/g, ",").replace(/\s{2,}/g, " ").trim();
+   503→
+   504→    // Année isolée (1900-2099) sans unité → pas une statistique
+   505→    if (!unitTxt && /^(19|20)\d{2}$/.test(numStr)) {
+   506→      skipped++;
+   507→      continue;
+   508→    }
+   509→
+   510→    let label: string;
+   511→    if (ci > 0) {
+   512→      label = clause.slice(0, ci).trim();
+   513→      if (label.length > 64 || !/[A-Za-zÀ-ÿ]/.test(label)) {
+   514→        skipped++;
+   515→        continue;
+   516→      }
+   517→    } else {
+   518→      const before = base.slice(0, nm.index ?? 0).trim();
+   519→      if (before.length < 2 || before.length > 48 || before.includes("(") || !/[A-Za-zÀ-ÿ]/.test(before)) {
+   520→        skipped++;
+   521→        continue;
+   522→      }
+   523→      label = before;
+   524→    }
+   525→    label = label
+   526→      .replace(/[\s:;,–—-]+$/, "")
+   527→      .replace(/\s+(dans|de|du|des|la|le|les|un|une|en|sur|par|pour|avec|et|ou|au|aux)\s*$/i, "")
+   528→      .replace(/[\s:;,–—-]+$/, "")
+   529→      .trim();
+   530→    if (label.length < 2) {
+   531→      skipped++;
+   532→      continue;
+   533→    }
+   534→
+   535→    const detail = (unitTxt ? after.slice(unitTxt.length) : after).replace(/^[\s,%–—-]+/, "").trim();
+   536→    stats.push({
+   537→      label: label.slice(0, 120),
+   538→      value: (numStr + (unitTxt ? ` ${unitTxt}` : "")).slice(0, 60),
+   539→      ...(detail && detail !== label ? { detail: detail.slice(0, 300) } : {}),
+   540→    });
+   541→  }
+   542→  return { stats, skipped };
+   543→}
+   544→
+   545→/* ---------- Niveau de confiance ---------- */
+   546→
+   547→function levelToConfidence(level: string): string {
+   548→  if (level.startsWith("tr")) return "TRES_ELEVE";
+   549→  if (level.startsWith("faible")) return "FAIBLE";
+   550→  if (level.startsWith("modere")) return "MODERE";
+   551→  return "ELEVE";
+   552→}
+   553→
+   554→const CONF_LEVEL = "(?:tr\\s?e\\s?s\\s+)?(?:eleve|faible|modere)";
+   555→
+   556→/* ---------- Parseur principal ---------- */
+   557→
+   558→export function parseAnalyzeText(raw: string): ImportReport {
+   559→  const warnings: string[] = [];
+   560→  const parseErrors: string[] = [];
+   561→  const values: ImportedValues = {};
+   562→  const filled: string[] = [];
+   563→  const synthesisBlocks: string[] = [];
+   564→  let contextLine = "";
+   565→  // Texte complet aplati + détecteur de puces (pour le repli global)
+   566→  const flatRawAll = cleanText(raw).replace(/\s+/g, " ");
+   567→  const bulletReTop = /^\s*[•‣▪◦*\-–—]\s+/;
+   568→
+   569→  if (!raw || stripAccents(raw).replace(/\W/g, "").length < 40) {
+   570→    return { values, filled, warnings, parseErrors: ["Texte trop court ou vide."] };
+   571→  }
+   572→
+   573→  const sections = splitSections(raw);
+   574→  const hasSections = Object.keys(sections).some((k) => k !== "ALL");
+   575→  if (!hasSections) {
+   576→    warnings.push("sections A à G non repérées — remplissage partiel par étiquettes");
+   577→  }
+   578→  const sec = (k: string) => sections[k] ?? (hasSections ? "" : sections.ALL ?? "");
+   579→  const bulletsOf = (k: string) => parseBullets(sec(k));
+   580→
+   581→  /* ---- Titre (secours pour l'affiche) ---- */
+   582→  const titleLine = cleanText(raw).match(/Analyse\s*:\s*(.+)$/im);
+   583→  if (titleLine) {
+   584→    const title = titleLine[1].trim();
+   585→    if (title.length >= 3 && title.length <= 160) {
+   586→      values.matchName = title;
+   587→      filled.push("affiche (titre)");
+   588→    }
+   589→  }
+   590→
+   591→  /* ---- A. Match et contexte ---- */
+   592→  const aBullets = bulletsOf("A");
+   593→  if (aBullets.length) {
+   594→    const matchB = findBullet(aBullets, /^(match|rencontre|affiche|evenement)\b/);
+   595→    if (matchB?.body) {
+   596→      values.matchName = matchB.body.replace(/\s+/g, " ").trim().replace(/[.]\s*$/, "").slice(0, 160);
+   597→      filled.push("affiche");
+   598→    }
+   599→    const sportB = findBullet(aBullets, /^sport/);
+   600→    const compB = findBullet(aBullets, /^competition/);
+   601→    // La compétition peut être collée à la ligne « Sport » OU avoir sa propre ligne :
+   602→    // les deux sources sont examinées, indépendamment l'une de l'autre.
+   603→    const compSource = sportB?.body || compB?.body || "";
+   604→    if (sportB?.body || compB?.body) {
+   605→      const flat = stripAccents(`${sportB?.body ?? ""} ${compB?.body ?? ""}`).toLowerCase();
+   606→      if (/\bfootball\b|\bsoccer\b|\bfoot\b/.test(flat)) values.sport = "FOOTBALL";
+   607→      else if (/\bbasket/.test(flat)) values.sport = "BASKETBALL";
+   608→      else if (/\btennis\b/.test(flat)) values.sport = "TENNIS";
+   609→
+   610→      const comp =
+   611→        (compB?.body ? extractCompetition(compB.body) : {});
+   612→      // Repli sur la ligne « Sport » si la ligne « Compétition » n'a rien donné
+   613→      if (!comp.competition && sportB?.body) {
+   614→        const c2 = extractCompetition(sportB.body);
+   615→        if (c2.competition) (comp as { competition?: string }).competition = c2.competition;
+   616→        if (c2.sportHint && !comp.sportHint) (comp as { sportHint?: string }).sportHint = c2.sportHint;
+   617→      }
+   618→      if (comp.sportHint && !values.sport) values.sport = comp.sportHint;
+   619→      if (values.sport) filled.push("sport");
+   620→      else warnings.push("sport non reconnu — laissez la valeur actuelle");
+   621→
+   622→      if (comp.competition) {
+   623→        values.competition = comp.competition.slice(0, 120);
+   624→        filled.push("compétition");
+   625→      } else if (compB?.body) {
+   626→        const label = cleanCompetitionLabel(compB.body);
+   627→        if (label) {
+   628→          values.competition = label.slice(0, 120);
+   629→          filled.push("compétition");
+   630→        }
+   631→      }
+   632→      if (!values.competition) {
+   633→        warnings.push("compétition introuvable dans la section A — à compléter");
+   634→      }
+   635→    }
+   636→    const dateB = findBullet(aBullets, /^date/);
+   637→    if (dateB?.body) {
+   638→      const local = parseMatchDate(dateB.body, warnings);
+   639→      if (local) {
+   640→        values.matchDate = local;
+   641→        filled.push("date du match");
+   642→        warnings.push("date/heure importée — à contrôler");
+   643→        const monthKeys2 = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join("|");
+   644→        const dateRe2 = new RegExp(`^\\d{1,2}(?:er)?\\s+(${monthKeys2})\\s+\\d{4}$`, "i");
+   645→        const weekdayRe = /^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)$/i;
+   646→        // Retire les parenthèses contenant une heure (ex. « (autour de 08:30–10:30 …) »)
+   647→        const cleaned = dateB.body.replace(/\([^()]*\d{1,2}\s*[h:][^()]*\)/g, " ");
+   648→        const rest = cleaned
+   649→          .split(",")
+   650→          .map((s) => s.trim())
+   651→          .filter((s) => {
+   652→            if (!s) return false;
+   653→            const t = s.replace(/\s+/g, " ").trim();
+   654→            const stripped = t.replace(/^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+/i, "");
+   655→            if (weekdayRe.test(t)) return false;
+   656→            if (dateRe2.test(stripped)) return false;
+   657→            // Tout résidu lié à l'horaire est du bruit : heure « 21h00 »,
+   658→            // plage « 20h00-21h00 », fuseau « CET/CEST/UTC… », indications
+   659→            // de « autour de 20h » / « heure locale » — jamais du contexte utile.
+   660→            if (/\d{1,2}\s*[h:]/i.test(t)) return false;
+   661→            if (/\b(?:CEST|CET|WEST|WET|UTC|GMT|EET|EST|PST|PDT|CDT|CST|MDT|MST)\b/i.test(t)) return false;
+   662→            if (/(autour de|environ|heure locale|locale|fuseaux?|horaire)/i.test(t)) return false;
+   663→            // Seul un libellé significatif SANS chiffre mérite d'être conservé
+   664→            // (ex. « Mestalla », « Estádio do Dragão »).
+   665→            if (/\d/.test(t)) return false;
+   666→            if (stripAccents(t).replace(/[^A-Za-z]/g, "").length < 4) return false;
+   667→            return true;
+   668→          })
+   669→          .join(", ")
+   670→          .replace(/[()\[\]]/g, "")
+   671→          .replace(/\s{2,}/g, " ")
+   672→          .trim();
+   673→        if (rest && rest.length > 3) contextLine = rest.slice(0, 300);
+   674→      }
+   675→    } else {
+   676→      warnings.push("date du match introuvable dans la section A");
+   677→    }
+   678→  }
+   679→
+   680→  /* ---- B. Scénario sportif ---- */
+   681→  const bBullets = bulletsOf("B");
+   682→  const keyPointItems: string[] = [];
+   683→  const summaryParts: string[] = [];
+   684→
+   685→  if (bBullets.length) {
+   686→    for (const b of bBullets) {
+   687→      const lab = normLabel(b.label);
+   688→      if (/^raisons principales/.test(lab)) {
+   689→        keyPointItems.push(...splitReasons(b.body));
+   690→      } else if (/^scenario alternatif|^alternatif/.test(lab)) {
+   691→        if (b.body) {
+   692→          values.alternativeScenario = b.body.replace(/\s+/g, " ").trim().slice(0, 2000);
+   693→          filled.push("scénario alternatif");
+   694→        }
+   695→      } else if (/^facteurs/.test(lab)) {
+   696→        const items = b.body
+   697→          .split(/\s*;\s*|\n/)
+   698→          .map((l) => l.replace(/^\s*[-–—•*]\s*/, "").replace(/^\d+\s*[.)]\s*/, "").trim())
+   699→          .filter((l) => l.length >= 6);
+   700→        keyPointItems.push(...items);
+   701→      } else if (!b.label && b.body && b.body.replace(/\W/g, "").length >= 12) {
+   702→        // Sous-puces imbriqués (ex. liste de raisons sans étiquette)
+   703→        const items = b.body
+   704→          .split("\n")
+   705→          .map((l) => l.replace(/^\s*[-–—•*]\s*/, "").replace(/^\d+\s*[.)]\s*/, "").trim())
+   706→          .filter((l) => l.length >= 6);
+   707→        keyPointItems.push(...items);
+   708→      } else if (b.label) {
+   709→        summaryParts.push(`• ${b.label} : ${b.body.replace(/\s+/g, " ").trim()}`);
+   710→      } else {
+   711→        summaryParts.push(b.body.trim());
+   712→      }
+   713→    }
+   714→  }
+   715→
+   716→  /* ---- C. Convergence des preuves ---- */
+   717→  const cBullets = bulletsOf("C");
+   718→  const convergenceParts: string[] = [];
+   719→  if (cBullets.length) {
+   720→    for (const b of cBullets) {
+   721→      const lab = normLabel(b.label);
+   722→      if (/^statistiques?/.test(lab) && b.body) {
+   723→        const { stats, skipped } = parseKeyStats(b.body);
+   724→        if (stats.length) {
+   725→          values.keyStats = stats;
+   726→          filled.push(`statistiques clés (${stats.length})`);
+   727→          if (skipped > 0) {
+   728→            warnings.push(`statistiques partielles (${skipped} fragment(s) non décodé(s)) — vérifiez la section C`);
+   729→          }
+   730→        } else {
+   731→          if (skipped > 0) {
+   732→            warnings.push("statistiques non décodées — section C à saisir à la main");
+   733→          }
+   734→          convergenceParts.push(`• ${b.label} : ${b.body.replace(/\s+/g, " ").trim()}`);
+   735→        }
+   736→      } else if (b.label) {
+   737→        convergenceParts.push(`• ${b.label} : ${b.body.replace(/\s+/g, " ").trim()}`);
+   738→      } else {
+   739→        convergenceParts.push(b.body.trim());
+   740→      }
+   741→    }
+   742→  }
+   743→
+   744→  /* ---- D. Comparaison des marchés ---- */
+   745→  const dText = sec("D").trim();
+   746→
+   747→  /* ---- Assemblage du scénario principal ----
+   748→     Sections reconnues : assemblage B + convergence + comparaison.
+   749→     Sans sections (collage plat) : texte narratif = tout SAUF les lignes
+   750→     « Label : valeur » de champs (déjà versés dans le formulaire) et la
+   751→     ligne d'affiche (déjà dans matchName). */
+   752→  const vsLineRe = /^[A-Za-zÀ-ÿ0-9.'\'\- ]{3,48}\s+vs\.?\s+[A-Za-zÀ-ÿ0-9.'\'\- ]{3,48}\s*$/;
+   753→  if (!hasSections) {
+   754→    const fieldLabelsNoNarr = FLAT_LABELS.filter((l) => l !== "equipe superieure");
+   755→    const fieldLineRe = new RegExp(
+   756→      `^(?:[-–—•*]\\s*)?(?:${fieldLabelsNoNarr.map((l) => accentPat(l).replace(/ /g, "\\s+")).join("|")})\\s*[:\\-–—]`,
+   757→      "i"
+   758→    );
+   759→    const narrative = cleanText(raw)
+   760→      .split("\n")
+   761→      .map((l) => stripInline(l).trim())
+   762→      .filter(Boolean)
+   763→      .filter((l) => !fieldLineRe.test(l))
+   764→      .filter((l) => !vsLineRe.test(l));
+   765→    if (narrative.length) {
+   766→      values.scenarioSummary = capText(narrative.join("\n"), MAX_SUMMARY, warnings, "scénario");
+   767→      filled.push("scénario sportif");
+   768→    }
+   769→  } else {
+   770→    const summaryChunks: string[] = [];
+   771→    if (contextLine) summaryChunks.push(contextLine);
+   772→    summaryChunks.push(...summaryParts);
+   773→    if (convergenceParts.length) {
+   774→      summaryChunks.push("Convergence des preuves :", ...convergenceParts);
+   775→    }
+   776→    if (dText) summaryChunks.push("Comparaison des marchés :", dText);
+   777→    const summary = summaryChunks.join("\n").trim();
+   778→    if (summary) {
+   779→      values.scenarioSummary = capText(summary, MAX_SUMMARY, warnings, "scénario");
+   780→      filled.push("scénario sportif");
+   781→    }
+   782→  }
+   783→
+   784→  if (keyPointItems.length) {
+   785→    const cleaned = keyPointItems.filter((k) => !vsLineRe.test(k.trim()));
+   786→    if (cleaned.length) {
+   787→      const capped = cleaned.slice(0, MAX_POINTS).map((k) => k.slice(0, 480));
+   788→      values.keyPoints = capped.join("\n");
+   789→      filled.push(`points clés (${capped.length})`);
+   790→      if (cleaned.length > MAX_POINTS) {
+   791→        warnings.push(`points clés limités à ${MAX_POINTS} — ${cleaned.length - MAX_POINTS} ignorés`);
+   792→      }
+   793→    }
+   794→  }
+   795→
+   796→  /* ---- E. Marché retenu ---- */
+   797→  const eBullets = bulletsOf("E");
+   798→  if (eBullets.length) {
+   799→    const marketB = findBullet(eBullets, /^(marche|market|marche\s+retenu|pari\s+retenu)\b/);
+   800→    if (marketB?.body) {
+   801→      let mk = marketB.body.replace(/\s+/g, " ").trim();
+   802→      mk = mk.split(/\s+\(ou\b/i)[0].trim(); // retire le second choix éventuel
+   803→      mk = mk.replace(/[;.。]+\s*$/, "").trim();
+   804→      values.market = mk.slice(0, 120);
+   805→      filled.push("marché");
+   806→    }
+   807→    const selB = findBullet(eBullets, /^(selection|pronostic|pari|choix|pick|pronostic\s+retenu)\b/);
+   808→    if (selB?.body) {
+   809→      values.selection = selB.body
+   810→        .replace(/\s+/g, " ")
+   811→        .trim()
+   812→        .replace(/[;.。]+\s*$/, "")
+   813→        .slice(0, 120);
+   814→      filled.push("sélection");
+   815→    }
+   816→    const lineB = findBullet(eBullets, /^ligne\b/);
+   817→    if (lineB?.body) {
+   818→      // Nombre signé en tête (« -0,5 ») ou, à défaut, premier nombre isolé
+   819→      // dans la valeur (« Under 2,5 (ou Under 2,25…) » → « 2,5 »).
+   820→      const lm = lineB.body.match(/^\s*([+\-−–—]?\s?\d+(?:[.,]\d+)?)/);
+   821→      if (lm) {
+   822→        values.line = lm[1].replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+   823→        filled.push("ligne");
+   824→      } else {
+   825→        const am = lineB.body.match(/([+\-−–]?\s?\d+(?:[.,]\d+)?)/);
+   826→        if (am) {
+   827→          values.line = am[1].replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+   828→          filled.push("ligne");
+   829→        }
+   830→      }
+   831→    }
+   832→    const oddsB = findBullet(eBullets, /^cote/);
+   833→    if (oddsB?.body) {
+   834→      const dec = oddsB.body.match(/\d{1,2}[.,]\d{1,3}/);
+   835→      let oddsVal: string | undefined;
+   836→      if (dec) {
+   837→        oddsVal = dec[0].replace(",", ".");
+   838→      } else {
+   839→        const plain = oddsB.body.match(/\b(\d{1,2}(?:[.,]\d+)?)\b/);
+   840→        if (plain) {
+   841→          const v = Number(plain[1].replace(",", "."));
+   842→          if (v >= 1.01 && v <= 100) oddsVal = String(v);
+   843→        }
+   844→      }
+   845→      if (oddsVal) {
+   846→        values.odds = oddsVal;
+   847→        filled.push("cote");
+   848→        warnings.push("cote importée — à contrôler");
+   849→      } else {
+   850→        warnings.push("cote introuvable (format non reconnu) — à saisir manuellement");
+   851→      }
+   852→    }
+   853→    const whyB = findBullet(eBullets, /^pourquoi/);
+   854→    if (whyB?.body) {
+   855→      synthesisBlocks.push(`Pourquoi ce marché : ${whyB.body.replace(/\s+/g, " ").trim()}`);
+   856→    }
+   857→  }
+   858→
+   859→  /* ---- F. Verdict (avec repli sur le texte intégral) ---- */
+   860→  const fText = sec("F") || cleanText(raw);
+   861→  if (fText) {
+   862→    const vm = fText.match(/JE\s+JOUE(?:\s+SOUS\s+CONDITION)?/i);
+   863→    if (vm) {
+   864→      const v = stripAccents(vm[0]).toUpperCase().replace(/\s+/g, " ");
+   865→      if (v.includes("SOUS CONDITION")) {
+   866→        values.verdict = "JE_JOUE_SOUS_CONDITION";
+   867→        const cm = fText.match(/sous condition\s*[:\-–—]?\s*(.+)/i);
+   868→        values.condition = (cm ? cm[1] : "").replace(/\s+/g, " ").trim().slice(0, 2000) || undefined;
+   869→        if (!values.condition) warnings.push("condition d'exécution à préciser (verdict sous condition)");
+   870→      } else {
+   871→        values.verdict = "JE_JOUE";
+   872→      }
+   873→      filled.push("verdict");
+   874→    } else {
+   875→      warnings.push("verdict non détecté dans la section F");
+   876→    }
+   877→
+   878→    const fFlat = stripAccents(fText).toLowerCase().replace(/\s+/g, " ");
+   879→    const conf = fFlat.match(
+   880→      new RegExp(`(?:niveau\\s+de\\s+|indice\\s+de\\s+)?confiance\\s*[:\\-–—]?\\s*(${CONF_LEVEL})(?:\\s*(?:a|ou|/|->|→)\\s*(${CONF_LEVEL}))?`)
+   881→    );
+   882→    if (conf) {
+   883→      values.confidence = levelToConfidence(conf[1]);
+   884→      filled.push("niveau de confiance");
+   885→      if (conf[2]) {
+   886→        warnings.push(
+   887→          `confiance ambiguë « ${conf[1]} à ${conf[2]} » — premier niveau appliqué, à confirmer`
+   888→        );
+   889→      }
+   890→    } else {
+   891→      warnings.push("niveau de confiance non détecté");
+   892→    }
+   893→
+   894→    const fBullets = parseBullets(fText);
+   895→    const reasonsB = findBullet(fBullets, /^raisons d[ée]terminantes/);
+   896→    if (reasonsB?.body) {
+   897→      synthesisBlocks.push(`Raisons déterminantes : ${reasonsB.body.replace(/\s+/g, " ").trim()}`);
+   898→    }
+   899→    const limitB = findBullet(fBullets, /^principale limite/);
+   900→    if (limitB?.body) {
+   901→      synthesisBlocks.push(`Principale limite : ${limitB.body.replace(/\s+/g, " ").trim()}`);
+   902→    }
+   903→  }
+   904→
+   905→  /* ---- G. Synthèse finale (prioritaire sur les blocs E/F) ----
+   906→     Uniquement si des sections ont été détectées : en collage plat sans
+   907→     sections, sec("G") renverrait le texte ENTIER — on ne l'utilise pas. */
+   908→  const gText = hasSections ? sec("G") : "";
+   909→  if (gText && gText.replace(/\W/g, "").length >= 60) {
+   910→    const g = gText
+   911→      .split("\n")
+   912→      .map((l) => l.replace(/^\s*[-–—•*]\s*/, "").trim())
+   913→      .filter(Boolean)
+   914→      .join("\n")
+   915→      .trim();
+   916→    values.synthesis = capText(g, MAX_SYNTHESIS, warnings, "synthèse");
+   917→    filled.push("synthèse finale (G)");
+   918→  } else if (synthesisBlocks.length) {
+   919→    values.synthesis = capText(synthesisBlocks.join("\n\n").trim(), MAX_SYNTHESIS, warnings, "synthèse");
+   920→    filled.push("synthèse finale");
+   921→  }
+   922→
+   923→  /* ---- Repli global par étiquettes ------------------------------------
+   924→     Pour les collages sans structure reconnaissable (texte aplati, sections
+   925→     numérotées non détectées, labels éclatés) : chaque champ encore vide est
+   926→     recherché dans le TEXTE ENTIER par son étiquette. La valeur s'arrête au
+   927→     prochain label connu, à la fin de ligne ou à un saut de section. */
+   928→  if (filled.length === 0 || !values.market || !values.selection || !values.odds || !values.matchDate || !values.matchName) {
+   929→    // Parcourt chaque ligne : « Label : valeur » — la valeur s'étend jusqu'au
+   930→    // prochain label connu sur la MÊME ligne (collage aplati) ou fin de ligne.
+   931→    const rawLines = cleanText(raw).split("\n");
+   932→    const labeled: { label: string; body: string }[] = [];
+   933→    for (const line of rawLines) {
+   934→      const t = stripInline(line).trim();
+   935→      if (!t || DECOR_LINE_RE.test(t)) continue;
+   936→      const lm = t.match(LABEL_LINE_RE);
+   937→      if (lm) {
+   938→        labeled.push({ label: normLabel(lm[1]), body: lm[2].replace(STOP_LABEL_RE, "").trim() });
+   939→      } else if (labeled.length && !bulletReTop.test(t)) {
+   940→        // continuation : rattachée au dernier label (texte multi-lignes)
+   941→        labeled[labeled.length - 1].body += ` ${t.replace(STOP_LABEL_RE, "").trim()}`;
+   942→      }
+   943→    }
+   944→    const findL = (re: RegExp) => labeled.find((b) => re.test(b.label))?.body;
+   945→
+   946→    if (!values.matchName) {
+   947→      const v = findL(/^(match|rencontre|affiche|evenement)$/);
+   948→      if (v) {
+   949→        values.matchName = v.replace(/[.]\s*$/, "").slice(0, 160);
+   950→        filled.push("affiche (repli)");
+   951→      }
+   952→    }
+   953→    if (!values.sport || !values.competition) {
+   954→      const v = findL(/^sport/) || findL(/^competition/);
+   955→      if (v && !values.competition) {
+   956→        const comp = extractCompetition(v);
+   957→        if (comp.competition) values.competition = comp.competition.slice(0, 120);
+   958→        if (comp.sportHint && !values.sport) values.sport = comp.sportHint;
+   959→        if (!values.competition) values.competition = cleanCompetitionLabel(v).slice(0, 120) || undefined;
+   960→        if (values.competition) filled.push("compétition (repli)");
+   961→      }
+   962→      if (!values.sport && values.competition) {
+   963→        const f = stripAccents(values.competition).toLowerCase();
+   964→        if (/\bfoot/.test(f)) values.sport = "FOOTBALL";
+   965→        else if (/\bbasket/.test(f)) values.sport = "BASKETBALL";
+   966→        else if (/\btennis/.test(f)) values.sport = "TENNIS";
+   967→        if (values.sport) filled.push("sport (repli)");
+   968→      }
+   969→    }
+   970→    if (!values.matchDate) {
+   971→      const v = findL(/^(date( et heure| du match)?|heure|jour)$/);
+   972→      if (v) {
+   973→        const local = parseMatchDate(v, warnings);
+   974→        if (local) {
+   975→          values.matchDate = local;
+   976→          filled.push("date du match (repli)");
+   977→          warnings.push("date/heure importée — à contrôler");
+   978→        }
+   979→      }
+   980→    }
+   981→    if (!values.market) {
+   982→      const v = findL(/^(marche|market|pari retenu)$/);
+   983→      if (v) {
+   984→        values.market = v.split(/\s+\(ou\b/i)[0].replace(/[;.]+$/, "").trim().slice(0, 120) || undefined;
+   985→        if (values.market) filled.push("marché (repli)");
+   986→      }
+   987→    }
+   988→    if (!values.selection) {
+   989→      const v = findL(/^(selection|pronostic|pari|choix|pick)$/);
+   990→      if (v) {
+   991→        values.selection = v.replace(/[;.]+$/, "").trim().slice(0, 120) || undefined;
+   992→        if (values.selection) filled.push("sélection (repli)");
+   993→      }
+   994→    }
+   995→    // « Marché » contenant déjà le pari (ex. « Marché : Under 2,5 ») :
+   996→    // si la sélection manque, la dériver du marché plutôt que la perdre.
+   997→    if (!values.selection && values.market && values.market.length <= 40) {
+   998→      values.selection = values.market;
+   999→      filled.push("sélection (= marché)");
+  1000→      warnings.push("sélection déduite du marché — vérifiez-la");
+  1001→    }
+  1002→    if (!values.line) {
+  1003→      const v = findL(/^ligne\b/);
+  1004→      const lm = v?.match(/^\s*([+\-−–—]?\s?\d+(?:[.,]\d+)?)/);
+  1005→      if (lm) {
+  1006→        values.line = lm[1].replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+  1007→        filled.push("ligne (repli)");
+  1008→      } else {
+  1009→        const am = v?.match(/([+\-−–]?\s?\d+(?:[.,]\d+)?)/);
+  1010→        if (am) {
+  1011→          values.line = am[1].replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+  1012→          filled.push("ligne (repli)");
+  1013→        }
+  1014→      }
+  1015→    }
+  1016→    if (!values.odds) {
+  1017→      const v = findL(/^cotes?$/);
+  1018→      if (v) {
+  1019→        const dec = v.match(/\d{1,2}[.,]\d{1,3}/);
+  1020→        if (dec) {
+  1021→          values.odds = dec[0].replace(",", ".");
+  1022→          filled.push("cote (repli)");
+  1023→          warnings.push("cote importée — à contrôler");
+  1024→        }
+  1025→      }
+  1026→    }
+  1027→    if (!values.verdict) {
+  1028→      const vm3 = flatRawAll.match(/JE\s+JOUE(?:\s+SOUS\s+CONDITION)?/i);
+  1029→      if (vm3) {
+  1030→        const v = stripAccents(vm3[0]).toUpperCase().replace(/\s+/g, " ");
+  1031→        values.verdict = v.includes("SOUS CONDITION") ? "JE_JOUE_SOUS_CONDITION" : "JE_JOUE";
+  1032→        filled.push("verdict (repli)");
+  1033→      }
+  1034→    }
+  1035→    if (!values.confidence) {
+  1036→      const cm = flatRawAll.match(
+  1037→        new RegExp(`(?:niveau\\s+de\\s+|indice\\s+de\\s+)?confiance\\s*[:\\-–—]?\\s*(${CONF_LEVEL})(?:\\s*(?:a|ou|/|->|→)\\s*(${CONF_LEVEL}))?`, "i")
+  1038→      );
+  1039→      if (cm) {
+  1040→        values.confidence = levelToConfidence(stripAccents(cm[1]).toLowerCase());
+  1041→        filled.push("niveau de confiance (repli)");
+  1042→        if (cm[2]) warnings.push(`confiance ambiguë « ${cm[1]} à ${cm[2]} » — premier niveau appliqué`);
+  1043→      }
+  1044→    }
+  1045→  }
+  1046→
+  1047→  /* ---- Explicitation des champs restés vides (aucun échec silencieux) ---- */
+  1048→  if (filled.length >= 2) {
+  1049→    const criticals: [string, string | undefined][] = [
+  1050→      ["affiche (nom du match)", values.matchName],
+  1051→      ["date du match", values.matchDate],
+  1052→      ["marché", values.market],
+  1053→      ["sélection", values.selection],
+  1054→      ["cote", values.odds],
+  1055→    ];
+  1056→    for (const [label, v] of criticals) {
+  1057→      if (!v) warnings.push(`${label} non reconnu(e) — à remplir manuellement`);
+  1058→    }
+  1059→  }
+  1060→
+  1061→  /* ---- Ligne déduite de la sélection (aucun échec silencieux) ----
+  1062→     « FC Porto -0,5 » → ligne « -0,5 » ; « Under 2,5 » → « 2,5 ».
+  1063→     Seulement si aucune ligne n'a été trouvée ailleurs. */
+  1064→  if (!values.line && values.selection) {
+  1065→    const sel = values.selection.replace(/\s+/g, " ").trim();
+  1066→    const sm =
+  1067→      sel.match(/(?:^|\s)([+\-−–]\s?\d+(?:[.,]\d+)?)\s*$/) ??
+  1068→      sel.match(/^(?:under|over|moins de|plus de|au-dessus de|en-dessous de)\s+(\d+(?:[.,]\d+)?)/i);
+  1069→    if (sm) {
+  1070→      values.line = (sm[1] ?? "").replace(/[−–—]/g, "-").replace(/\s+/g, "").slice(0, 60);
+  1071→      if (values.line) {
+  1072→        filled.push("ligne (dérivée de la sélection)");
+  1073→        warnings.push("ligne déduite de la sélection — vérifiez-la");
+  1074→      }
+  1075→    }
+  1076→  }
+  1077→
+  1078→  /* ---- Dernier repli pour l'affiche : motif « X vs Y » ---- */
+  1079→  if (!values.matchName) {
+  1080→    const vm2 = cleanText(raw)
+  1081→      .slice(0, 600)
+  1082→      .match(/([A-Za-zÀ-ÿ0-9.''\- ]{3,48})\s+\bvs\.?\b\s+([A-Za-zÀ-ÿ0-9.''\- ]{3,48})/);
+  1083→    if (vm2) {
+  1084→      values.matchName = `${vm2[1].trim()} vs ${vm2[2].trim()}`.slice(0, 160);
+  1085→      filled.push("affiche (vs)");
+  1086→    }
+  1087→  }
+  1088→
+  1089→  if (filled.length === 0) {
+  1090→    parseErrors.push("aucun champ reconnu — vérifiez que le texte suit le format NODE.47 (sections A à G)");
+  1091→  }
+  1092→
+  1093→  return { values, filled, warnings, parseErrors };
+  1094→}
+  1095→
