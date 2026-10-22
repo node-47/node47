@@ -78,7 +78,7 @@ export async function Ticker() {
           </div>
         ) : (
           <div className="px-[14px] text-xs text-muted-foreground">
-            Les premières sélections paraissent chaque jour à partir de 8 h UTC.
+            Aucune sélection publiée pour le moment.
           </div>
         )}
       </div>

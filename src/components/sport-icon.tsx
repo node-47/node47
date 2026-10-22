@@ -25,11 +25,16 @@ export function SportIcon({
   };
 
   if (sport === "FOOTBALL") {
-    // Ballon : cercle + pentagone central plein
+    // Ballon de football : cercle + pentagone central plein + 5 rayons vers le cercle
     return (
       <svg {...common}>
         <circle cx="12" cy="12" r="9" />
-        <path d="M12 7.6l4.2 3-1.6 4.9H9.4l-1.6-4.9z" fill="currentColor" stroke="none" />
+        <path
+          d="M12 8l3.8 2.76-1.45 4.44H9.65L8.2 10.76z"
+          fill="currentColor"
+          stroke="none"
+        />
+        <path d="M12 8V3M15.8 10.76l4.76-1.54M14.35 15.2l2.94 4.08M9.65 15.2l-2.94 4.08M8.2 10.76L3.44 9.22" />
       </svg>
     );
   }

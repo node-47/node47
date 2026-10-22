@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import type { picks } from "../../../../../db/schema";
+import type { Pick } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
   decodePick,
@@ -45,7 +45,7 @@ const CONFIDENCE_FR_LOW: Record<Confidence, string> = {
 };
 
 /** Méta description (~155 caractères) : affiche, marché, verdict, confiance */
-function ficheMetaDescription(pick: typeof picks.$inferSelect): string {
+function ficheMetaDescription(pick: Pick): string {
   const marketBits = [pick.market, pick.selection, pick.line].filter(Boolean).join(" ");
   const odds = pick.odds != null ? ` @ ${formatOdds(pick.odds)}` : "";
   const verdictLabel = (VERDICT_LABELS[pick.verdict as Verdict] ?? "Je joue").toLowerCase();

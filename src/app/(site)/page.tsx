@@ -26,18 +26,18 @@ export const metadata = {
 const PILLARS = [
   {
     num: "01",
-    title: "Lecture sportive d'abord",
-    text: "Chaque décision part du terrain : la forme, les absences, les styles et le contexte réel de la rencontre — pas les récits médiatiques.",
+    title: "Une décision, pas une liste",
+    text: "Un seul marché par rencontre, avec la ligne exacte et la cote observée à la publication. Deux verdicts possibles — « Je joue » ou « Je joue sous condition ». Sans convergence des preuves, rien n'est publié.",
   },
   {
     num: "02",
-    title: "Convergence des preuves",
-    text: "Statistiques, données avancées, modèles et structure du marché doivent raconter la même histoire avant qu'une sélection soit publiée.",
+    title: "La confiance fixe la mise",
+    text: "Faible 0,5 u · Modéré 1 u · Élevé 1,5 u · Très élevé 2 u. L'échelle est fixe et publique : la mise découle mécaniquement du niveau de confiance de chaque sélection, jamais d'un ressenti.",
   },
   {
     num: "03",
-    title: "Décision assumée",
-    text: "Un verdict clair sur un marché précis, avec un niveau de confiance explicite. Pas de sélection forcée : seule une convergence solide est publiée.",
+    title: "Réglé en public, sur 30 jours",
+    text: "Gagnée, perdue, remboursée ou annulée : chaque sélection est réglée et conservée dans une fenêtre glissante de 30 jours. Unités nettes et yield recalculés en continu — rien n'est effacé.",
   },
 ];
 
@@ -97,7 +97,7 @@ export default async function HomePage() {
               <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
             </Link>
             <Link
-              href="/a-propos"
+              href="/notre-approche"
               className="inline-flex items-center rounded-lg border border-border px-6 py-3 font-display text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
             >
               Notre approche
@@ -183,8 +183,7 @@ export default async function HomePage() {
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-border p-11 text-center text-sm text-muted-foreground">
-            Aucune analyse publiée pour le moment. Les premières sélections paraissent chaque jour
-            à partir de 8&nbsp;h&nbsp;UTC.
+            Aucune analyse publiée pour le moment.
           </div>
         )}
 
@@ -282,10 +281,10 @@ export default async function HomePage() {
             public, jusqu&apos;au dernier résultat.
           </p>
           <Link
-            href="/a-propos#comment-lire"
+            href="/notre-approche"
             className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
           >
-            Comment lire un verdict NODE.47
+            Voir l&apos;approche en détail
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
 

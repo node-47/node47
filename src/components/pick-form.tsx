@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Loader2, Save, ClipboardPaste, Wand2, FileUp } from "lucide-react";
+import { Plus, Trash2, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,6 @@ import {
   type KeyStatItem,
 } from "@/lib/picks";
 import { useToast } from "@/hooks/use-toast";
-import { parseAnalyzeText } from "@/lib/analyze-import";
 
 export interface PickFormInitial {
   id?: string;
@@ -116,66 +115,9 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
   const [form, setForm] = useState<PickFormInitial>(initial ?? EmptyPickForm());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [importOpen, setImportOpen] = useState(mode === "create");
-  const [importText, setImportText] = useState("");
-  const [importWarn, setImportWarn] = useState<Record<string, boolean>>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function set<K extends keyof PickFormInitial>(key: K, value: PickFormInitial[K]) {
     setForm((f) => ({ ...f, [key]: value }));
-    setImportWarn((w) => (w[key] ? { ...w, [key]: false } : w));
-  }
-
-  /* --- Import d'une analyse collée --- */
-  function applyImport() {
-    const report = parseAnalyzeText(importText);
-    if (report.parseErrors.length && report.filled.length === 0) {
-      setError(`Import impossible — ${report.parseErrors[0]}`);
-      return;
-    }
-    setForm((f) => ({ ...f, ...report.values }));
-    setImportWarn({
-      ...(report.values.matchDate ? { matchDate: true } : {}),
-      ...(report.values.odds ? { odds: true } : {}),
-    });
-    const n = report.filled.length;
-    const filledList = report.filled.slice(0, 10).join(" · ");
-    toast({
-      title: `Import analysé — ${n} champ${n > 1 ? "s" : ""} rempli${n > 1 ? "s" : ""}`,
-      description: [
-        filledList ? `Rempli : ${filledList}.` : "",
-        report.warnings.length
-          ? `À vérifier : ${report.warnings.slice(0, 6).join(" · ")}`
-          : "Tous les champs restent modifiables avant enregistrement.",
-      ]
-        .filter(Boolean)
-        .join(" "),
-    });
-    setImportText("");
-    setImportOpen(false);
-  }
-
-  /* --- Chargement d'un fichier d'analyse (.txt / .md) --- */
-  function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 200_000) {
-      setError("Fichier trop volumineux (200 Ko maximum).");
-      e.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImportText(String(reader.result ?? ""));
-      setError(null);
-      toast({
-        title: `Fichier « ${file.name} » chargé`,
-        description: "Cliquez sur « Analyser et remplir » pour pré-remplir le formulaire.",
-      });
-    };
-    reader.onerror = () => setError("Lecture du fichier impossible.");
-    reader.readAsText(file, "utf-8");
-    e.target.value = "";
   }
 
   /* --- Stats clés dynamiques --- */
@@ -281,81 +223,6 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* ============ 0. Import depuis un texte ============ */}
-      <section className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-5 sm:p-6">
-        <button
-          type="button"
-          onClick={() => setImportOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 text-left"
-          aria-expanded={importOpen}
-        >
-          <span className="flex items-center gap-2.5">
-            <ClipboardPaste className="h-4 w-4 text-primary" aria-hidden="true" />
-            <span className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-primary">
-              Importer depuis un texte
-            </span>
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {importOpen ? "Masquer" : "Coller ou charger une analyse complète (A à G)"}
-          </span>
-        </button>
-
-        {importOpen && (
-          <div className="mt-4 space-y-3">
-            <Textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              rows={10}
-              placeholder={"Collez ou chargez ici l'analyse (sections A à G, mise en forme libre : gras, tirets, puces…).\n\nEx. : NODE.47 — Analyse : FC Porto vs PSV Eindhoven\nA. MATCH ET CONTEXTE\n- Match : …\n- Sport / compétition : Football / Ligue des Champions"}
-              className="font-mono text-xs leading-relaxed"
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                onClick={applyImport}
-                disabled={!importText.trim()}
-                className="h-9 gap-2 bg-primary px-4 text-primary-foreground hover:bg-primary/90"
-              >
-                <Wand2 className="h-4 w-4" aria-hidden="true" />
-                Analyser et remplir
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => fileInputRef.current?.click()}
-                className="h-9 gap-2"
-              >
-                <FileUp className="h-4 w-4" aria-hidden="true" />
-                Charger un fichier
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setImportText("")}
-                disabled={!importText}
-                className="h-9"
-              >
-                Effacer
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,.md,.markdown,text/plain,text/markdown"
-                onChange={onFileChosen}
-                className="hidden"
-                aria-hidden="true"
-                tabIndex={-1}
-              />
-            </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Le formulaire se pré-remplit automatiquement, quelle que soit la mise en forme
-              (gras, tirets, puces, sections A à G) ; la saisie manuelle reste possible champ
-              par champ. Date, cote et fuseau horaire sont signalés « à vérifier » après import.
-            </p>
-          </div>
-        )}
-      </section>
-
       {/* ============ 1. Match ============ */}
       <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
         <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-primary">
@@ -395,7 +262,7 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
             />
           </Field>
 
-          <Field label="Date et heure du match" warn={importWarn.matchDate}>
+          <Field label="Date et heure du match">
             <Input
               type="datetime-local"
               value={form.matchDate}
@@ -579,7 +446,6 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
           <Field
             label="Cote observée (optionnel)"
             hint="Laissez vide si non vérifiable (affiché N/D)."
-            warn={importWarn.odds}
           >
             <Input
               inputMode="decimal"

@@ -12,7 +12,7 @@ const NAV_LINKS = [
   { href: "/football", label: "Football" },
   { href: "/basketball", label: "Basketball" },
   { href: "/tennis", label: "Tennis" },
-  { href: "/analyses", label: "Analyses" },
+  { href: "/notre-approche", label: "Notre approche" },
   { href: "/performance", label: "Performances" },
   { href: "/a-propos", label: "À propos" },
 ];
