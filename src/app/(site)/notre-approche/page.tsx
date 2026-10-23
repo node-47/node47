@@ -35,8 +35,8 @@ const SPORTS: Sport[] = ["FOOTBALL", "BASKETBALL", "TENNIS"];
 const CONTENT_ITEMS = [
   {
     icon: FileText,
-    title: "Le scénario sportif",
-    text: "Un résumé concis de la rencontre attendue : qui est supérieur, pourquoi, et comment cette supériorité peut se traduire sur le terrain. Jamais un pavé — une lecture condensée, lisible en quelques secondes.",
+    title: "Lecture du match & scénario attendu",
+    text: "D'abord la lecture du match : le contexte factuel — classements, points, forme récente, enjeux, avantage du terrain. Puis le scénario attendu : comment la rencontre devrait se dérouler, résultat projeté et manière de jouer. Deux lectures courtes, lisibles en quelques secondes.",
   },
   {
     icon: Gauge,

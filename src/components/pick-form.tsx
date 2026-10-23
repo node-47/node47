@@ -25,6 +25,7 @@ import {
   type KeyStatItem,
 } from "@/lib/picks";
 import { useToast } from "@/hooks/use-toast";
+import { JsonImportSection } from "@/components/json-import";
 
 export interface PickFormInitial {
   id?: string;
@@ -32,7 +33,8 @@ export interface PickFormInitial {
   competition: string;
   matchName: string;
   matchDate: string; // format datetime-local
-  scenarioSummary: string;
+  scenarioSummary: string; // « Lecture du match » — contexte factuel
+  expectedScenario: string; // « Scénario attendu » — déroulement projeté
   keyPoints: string; // une ligne = un point
   alternativeScenario: string;
   keyStats: KeyStatItem[];
@@ -56,6 +58,7 @@ export function EmptyPickForm(): PickFormInitial {
     matchName: "",
     matchDate: "",
     scenarioSummary: "",
+    expectedScenario: "",
     keyPoints: "",
     alternativeScenario: "",
     keyStats: [],
@@ -167,6 +170,7 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
       matchName: form.matchName.trim(),
       matchDate: new Date(form.matchDate).toISOString(),
       scenarioSummary: form.scenarioSummary.trim(),
+      expectedScenario: form.expectedScenario.trim(),
       keyPoints,
       keyStats,
       alternativeScenario: form.alternativeScenario.trim() || null,
@@ -223,6 +227,11 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* ============ 0. Import JSON (création uniquement) ============ */}
+      {mode === "create" && (
+        <JsonImportSection onApply={(data) => setForm((f) => ({ ...f, ...data }))} />
+      )}
+
       {/* ============ 1. Match ============ */}
       <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
         <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-primary">
@@ -284,12 +293,27 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
         </p>
 
         <div className="mt-5 space-y-5">
-          <Field label="Scénario sportif (résumé)">
+          <Field
+            label="Lecture du match"
+            hint="Le contexte factuel : classements, points, forme récente, enjeux, avantage du terrain…"
+          >
             <Textarea
               value={form.scenarioSummary}
               onChange={(e) => set("scenarioSummary", e.target.value)}
               rows={4}
-              placeholder="Qui est supérieur, pourquoi, et comment cette supériorité peut se traduire pendant le match…"
+              placeholder="Ex. : Alavés, 7e avec 11 points, reçoit le dernier sans victoire (4 pts). Supériorité nette à domicile malgré une forme moyenne…"
+            />
+          </Field>
+
+          <Field
+            label="Scénario attendu"
+            hint="Comment le match devrait se dérouler : résultat projeté et manière de jouer (250 caractères maximum recommandés)."
+          >
+            <Textarea
+              value={form.expectedScenario}
+              onChange={(e) => set("expectedScenario", e.target.value)}
+              rows={3}
+              placeholder="Ex. : Victoire d’Alavés, probablement serrée (1-0 ou 2-1). Domination territoriale et volume de tirs côté basque…"
             />
           </Field>
 
