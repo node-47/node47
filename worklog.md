@@ -112,3 +112,24 @@ Work Log:
 Stage Summary:
 - Les 5 demandes sont livrées : texte 8 h UTC effacé, import par texte disparu (saisie manuelle seule), onglet Analyses retiré du header, « Notre approche » est une vraie page fidèle au code et le ballon de football ressemble à un ballon
 - L'utilisateur doit redéposer le ZIP à jour sur GitHub pour redéployer Netlify (supprimer l'ancien contenu du dépôt puis glisser le nouveau)
+
+---
+Task ID: 28
+Agent: main (Z.ai)
+Task: Importateur JSON dans /admin + PROMPT IA pour générer les fichiers JSON d'import (demande utilisateur)
+
+Work Log:
+- Lecture du schéma Pick (16 champs utiles), de pick-form.tsx, de /api/admin/picks (zod) et de src/lib/picks.ts pour caler exactement le format
+- Nouveau src/lib/json-import.ts : parsePickJson (parse + normalisation tolérante) — alias FR/EN (championnat, affiche, cote, libellé/valeur/discours…), sports/verdicts/confiances mappés avec repli d'accents, dates ISO / « 23/10/2026 20:00 » / timestamp → datetime-local, cote « 1,85 » / « @1.85 » / plage « 1,70-2,00 » → nombre (1re valeur + avertissement), keyPoints string[] ou texte multi-lignes, keyStats {label,value,detail} — LIMITES appliquées : scénario ≤ 250 car. (avert.), synthèse ≤ 400 (avert.), max 4 points clés, max 5 stats (coupes + avertissements), champs inconnus signalés, essentiels manquants rappelés — merge non destructif côté formulaire
+- Nouveau src/components/json-import.tsx : section repliable « 00 — Importer un fichier JSON » (fichier .json OU collage direct), encadrés succès (vert) / avertissements (ambre) / erreurs (rouge), rappel des 16 clés attendues
+- pick-form.tsx : section 00 rendue en mode create uniquement, merge via setForm (champs déjà saisis jamais écrasés sauf si le JSON fournit une valeur)
+- Tests unitaires scripts/test-json-import.ts : 41/41 PASS (canonique 15 champs, alias 16 champs, coupes 6→4 points / 7→5 stats, cote-plage, sport/verdict/confiance inconnus, date illisible, JSON invalide, tableau, import partiel, objet vide)
+- Validation : eslint 0 erreur, tsc 0 erreur, /admin/nouveau rend la section, E2E API (POST 201 + DELETE nettoyage), E2E navigateur complet : login → collage du JSON d'exemple → « Import réussi — 15 champs préremplis » → affiche/compétition/scénario/4 points/5 stats/marché/sélection/ligne/cote 1.85/verdict/confiance/synthèse tous corrects ; captures scripts/import-json-ok.png et scripts/import-json-form-rempli.png
+- Livrables download/ : NODE47-PROMPT-IA-IMPORT-JSON.txt (prompt complet : rôle, étapes 1-5 dont recherches en ligne OBLIGATOIRES avant extraction, contraintes 250/400/4/5, valeurs exactes FOOTBALL/JE_JOUE/FAIBLE…TRES_ELEVE, format de sortie exact 16 clés, contrôle qualité, nommage node47-<sport>-<equipes>-<date>.json, mode d'emploi) + exemple-import-node47-alaves-malaga.json (Alavés vs Málaga, conforme aux limites)
+- Miroir : scripts/feature-src/import-json/ (json-import.ts, json-import.tsx, pick-form.tsx, test-json-import.ts, docs/)
+- ZIP régénéré : NODE47-source-code.zip (230 fichiers, ~2,2 Mo ; exclusions : .env, node_modules, .next, db, .config, logs, download interne, tsbuildinfo, captures, miroirs)
+
+Stage Summary:
+- L'utilisateur peut générer un JSON via n'importe quelle IA (prompt fourni : recherches en ligne d'abord, JSON strict ensuite) puis l'importer dans /admin → le formulaire se préremplit, il relit et publie — la saisie manuelle reste la voie par défaut
+- Les 5 modifications de la Task 27 sont inchangées et repartent dans le ZIP
+- L'utilisateur doit redéposer le ZIP à jour sur GitHub pour redéployer Netlify

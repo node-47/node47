@@ -23,6 +23,7 @@ CREATE TABLE "Pick" (
     "matchName" TEXT NOT NULL,
     "matchDate" TIMESTAMP(3) NOT NULL,
     "scenarioSummary" TEXT NOT NULL DEFAULT '',
+    "expectedScenario" TEXT NOT NULL DEFAULT '',
     "keyPoints" TEXT NOT NULL DEFAULT '[]',
     "keyStats" TEXT NOT NULL DEFAULT '[]',
     "alternativeScenario" TEXT,
@@ -56,3 +57,4 @@ CREATE TABLE "NewsletterSubscriber" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "NewsletterSubscriber_email_key" ON "NewsletterSubscriber"("email");
+
