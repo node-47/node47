@@ -1,13 +1,19 @@
+/** Nom de marque du site */
+export const SITE_NAME = "NODE.47";
+
+/**
+ * URL canonique du site — issue de NEXT_PUBLIC_SITE_URL (défini à la publication),
+ * repli sur localhost:3000 en développement. Sans slash final.
+ */
 export function getSiteUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
-  try {
-    const url = new URL(configured || "https://node47.netlify.app");
-    if (url.protocol === "https:" || url.protocol === "http:") return url.origin;
-  } catch { /* Use the canonical deployment URL if configuration is invalid. */ }
-  return "https://node47.netlify.app";
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  return raw ? raw.replace(/\/+$/, "") : "http://localhost:3000";
 }
 
-export function truncateForMeta(text: string, maxLength = 158): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  return normalized.length <= maxLength ? normalized : normalized.slice(0, maxLength - 1).trimEnd() + "…";
+/** Tronque un texte pour une meta description (~155 caractères), sur une coupure de mot */
+export function truncateForMeta(text: string, max = 155): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
