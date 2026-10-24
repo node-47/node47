@@ -10,7 +10,6 @@ const updateSchema = z.object({
   competition: z.string().min(1).max(120).optional(),
   matchName: z.string().min(1).max(160).optional(),
   matchDate: z.string().optional(),
-  scenarioSummary: z.string().max(4000).optional(),
   expectedScenario: z.string().max(4000).optional(),
   keyPoints: z.array(z.string().max(500)).max(12).optional(),
   keyStats: z
@@ -79,7 +78,6 @@ export async function PATCH(
     }
     update.matchDate = d;
   }
-  if (data.scenarioSummary !== undefined) update.scenarioSummary = data.scenarioSummary;
   if (data.expectedScenario !== undefined) update.expectedScenario = data.expectedScenario;
   if (data.keyPoints !== undefined) update.keyPoints = JSON.stringify(data.keyPoints);
   if (data.keyStats !== undefined) update.keyStats = JSON.stringify(data.keyStats);

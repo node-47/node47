@@ -288,33 +288,18 @@ export default async function PickDetailPage({
           </span>
         </div>
 
-        {/* Lecture du match */}
-        <section className="mt-6" aria-labelledby="scenario-title">
+        {/* Scénario attendu */}
+        <section className="mt-6" aria-labelledby="expected-scenario-title">
           <h2
-            id="scenario-title"
+            id="expected-scenario-title"
             className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"
           >
-            Lecture du match
+            Scénario attendu
           </h2>
           <p className="mt-2.5 whitespace-pre-line text-[14.5px] leading-relaxed text-foreground/95">
-            {p.scenarioSummary || "Résumé à venir."}
+            {p.expectedScenario || "Résumé à venir."}
           </p>
         </section>
-
-        {/* Scénario attendu */}
-        {p.expectedScenario && (
-          <section className="mt-5" aria-labelledby="expected-scenario-title">
-            <h2
-              id="expected-scenario-title"
-              className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"
-            >
-              Scénario attendu
-            </h2>
-            <p className="mt-2.5 whitespace-pre-line text-[14.5px] leading-relaxed text-foreground/95">
-              {p.expectedScenario}
-            </p>
-          </section>
-        )}
 
         {/* Points clés de convergence */}
         {p.keyPoints.length > 0 && (

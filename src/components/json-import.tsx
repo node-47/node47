@@ -48,7 +48,6 @@ export function JsonImportSection({ onApply }: { onApply: (data: Partial<PickFor
     if (d.competition) patch.competition = d.competition;
     if (d.matchName) patch.matchName = d.matchName;
     if (d.matchDate) patch.matchDate = d.matchDate;
-    if (d.scenarioSummary) patch.scenarioSummary = d.scenarioSummary;
     if (d.expectedScenario) patch.expectedScenario = d.expectedScenario;
     if (d.keyPoints?.length) patch.keyPoints = d.keyPoints.join("\n");
     if (d.keyStats?.length) patch.keyStats = d.keyStats;
@@ -202,8 +201,8 @@ export function JsonImportSection({ onApply }: { onApply: (data: Partial<PickFor
 
           <p className="text-xs leading-relaxed text-muted-foreground/70">
             Clés attendues dans le fichier : sport · competition · matchName · matchDate ·
-            lectureDuMatch · scenarioAttendu · keyPoints · keyStats · alternativeScenario ·
-            verdict · confidence · condition · market · selection · line · odds · synthesis.
+            scenarioAttendu · keyPoints · keyStats · alternativeScenario · verdict ·
+            confidence · condition · market · selection · line · odds · synthesis.
           </p>
         </div>
       )}

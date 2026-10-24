@@ -33,7 +33,6 @@ export interface PickFormInitial {
   competition: string;
   matchName: string;
   matchDate: string; // format datetime-local
-  scenarioSummary: string; // « Lecture du match » — contexte factuel
   expectedScenario: string; // « Scénario attendu » — déroulement projeté
   keyPoints: string; // une ligne = un point
   alternativeScenario: string;
@@ -57,7 +56,6 @@ export function EmptyPickForm(): PickFormInitial {
     competition: "",
     matchName: "",
     matchDate: "",
-    scenarioSummary: "",
     expectedScenario: "",
     keyPoints: "",
     alternativeScenario: "",
@@ -169,7 +167,6 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
       competition: form.competition.trim(),
       matchName: form.matchName.trim(),
       matchDate: new Date(form.matchDate).toISOString(),
-      scenarioSummary: form.scenarioSummary.trim(),
       expectedScenario: form.expectedScenario.trim(),
       keyPoints,
       keyStats,
@@ -293,18 +290,6 @@ export function PickForm({ initial, mode }: { initial?: PickFormInitial; mode: "
         </p>
 
         <div className="mt-5 space-y-5">
-          <Field
-            label="Lecture du match"
-            hint="Le contexte factuel : classements, points, forme récente, enjeux, avantage du terrain…"
-          >
-            <Textarea
-              value={form.scenarioSummary}
-              onChange={(e) => set("scenarioSummary", e.target.value)}
-              rows={4}
-              placeholder="Ex. : Alavés, 7e avec 11 points, reçoit le dernier sans victoire (4 pts). Supériorité nette à domicile malgré une forme moyenne…"
-            />
-          </Field>
-
           <Field
             label="Scénario attendu"
             hint="Comment le match devrait se dérouler : résultat projeté et manière de jouer (250 caractères maximum recommandés)."

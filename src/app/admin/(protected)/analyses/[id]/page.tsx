@@ -28,7 +28,6 @@ export default async function EditPickPage({
     competition: p.competition,
     matchName: p.matchName,
     matchDate: toDatetimeLocal(p.matchDate),
-    scenarioSummary: p.scenarioSummary,
     expectedScenario: p.expectedScenario,
     keyPoints: p.keyPoints.join("\n"),
     alternativeScenario: p.alternativeScenario ?? "",

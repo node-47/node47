@@ -30,9 +30,21 @@ export function SiteFooter() {
 
         <FooterDisclaimer />
 
-        <p className="mt-4 border-t border-border pt-4 text-[11.5px] text-muted-foreground">
-          © {year} NODE.47 — Trader Intelligence. Tous droits réservés.
-        </p>
+        <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-4">
+          <p className="text-[11.5px] text-muted-foreground">
+            © {year} NODE.47 — Trader Intelligence. Tous droits réservés.
+          </p>
+          {/* Photo du concepteur — bas droite du footer */}
+          <img
+            src="/images/concepteur.jpg"
+            alt="Photo du concepteur de NODE.47"
+            title="Le concepteur de NODE.47"
+            width={56}
+            height={56}
+            loading="lazy"
+            className="h-14 w-14 shrink-0 rounded-full border border-border object-cover"
+          />
+        </div>
       </div>
     </footer>
   );
