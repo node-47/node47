@@ -133,3 +133,29 @@ Stage Summary:
 - L'utilisateur peut générer un JSON via n'importe quelle IA (prompt fourni : recherches en ligne d'abord, JSON strict ensuite) puis l'importer dans /admin → le formulaire se préremplit, il relit et publie — la saisie manuelle reste la voie par défaut
 - Les 5 modifications de la Task 27 sont inchangées et repartent dans le ZIP
 - L'utilisateur doit redéposer le ZIP à jour sur GitHub pour redéployer Netlify
+
+---
+Task ID: 29
+Agent: main (Z.ai)
+Task: Distinction « Lecture du match » vs « Scénario attendu » — nouveau champ expectedScenario sur tout le site + import JSON + prompt IA v2
+
+Work Log:
+- Contexte utilisateur : « Lecture du match » (contexte factuel : classements, points, forme, enjeux) existait déjà (colonne scenarioSummary, libellé public « Lecture du match ») ; il fallait AJOUTER « Scénario attendu » (déroulement projeté : résultat + manière de jouer), nommer les deux champs proprement et les faire détecter par l'import JSON
+- Prisma : colonne expectedScenario String @default("") ajoutée aux DEUX schémas (schema.prisma SQLite + schema.postgres.prisma), commentaires sémantiques ; db push local + client régénéré depuis prisma/ (contournement bug CLI conservé)
+- SQL : deploiement/03-ajout-scenario-attendu.sql créé (ALTER TABLE ... ADD COLUMN IF NOT EXISTS, en-tête mode d'emploi non-technique) — à exécuter 1 fois dans Supabase SQL Editor ; 01-creer-les-tables.sql régénéré via prisma migrate diff (attendu expectedScenario) avec en-tête conservé
+- Admin pick-form.tsx : PickFormInitial/EmptyPickForm/payload + expectedScenario ; section 02 réorganisée : « Lecture du match » (hint contexte factuel, placeholder Alavés) PUIS « Scénario attendu » (hint 250 car. recommandés, placeholder Victoire d'Alavés…) ; l'ancien libellé « Scénario sportif (résumé) » disparaît
+- API : pickSchema (POST) + updateSchema (PATCH) + create/update data + expectedScenario (max 4000) ; page édition admin : initial.expectedScenario alimenté
+- Public /analyses/[id] : nouvelle section « Scénario attendu » juste sous « Lecture du match », rendue seulement si le champ est rempli (compatibilité avec les analyses existantes qui ont le champ vide)
+- Import JSON : json-import.ts — JsonPickData.expectedScenario, limites 500 (lecture, indicatif) / 250 (scénario attendu), KNOWN_KEYS étendus, alias lecture : scenariosummary/lecturedumatch/lecturematch/lecture/lecturedujeu/scenariosportif/senarioportifresume/scenario (rétrocompat v1) ; alias attendu : expectedscenario/scenarioattendu/scenarioprevu/scenarioprojete ; avertissements distincts « Lecture du match : » / « Scénario attendu : » ; json-import.tsx : patch + clés attendues affichées (17 clés avec lectureDuMatch · scenarioAttendu)
+- Notre approche : item « Le scénario sportif » → « Lecture du match & scénario attendu » (texte expliquant les deux lectures)
+- PROMPT IA v2 réécrit (download/NODE47-PROMPT-IA-IMPORT-JSON.txt) : section « BIEN DISTINGUER » avec l'exemple Alavés exact de l'utilisateur, 17 clés (lectureDuMatch ≤ 500, scenarioAttendu ≤ 250), contrôle qualité mis à jour, note de rétrocompatibilité v1 ; exemple-import-node47-alaves-malaga.json mis à jour avec les 2 champs
+- Tests : scripts/test-scenario-import.ts 21/21 PASS (canonique 17 clés→16 remplis car condition null, alias, rétro v1, mixte, dépassements, clé inconnue) — conservé en miroir, retiré du projet ; tsc 0 erreur ; eslint 0 erreur
+- Incidents résolus : (1) json-import.tsx copié par erreur dans src/lib/ → conflit de résolution bun, supprimé ; (2) ancien serveur next (pid 1548, 20h09) tenait le port 3000 avec le VIEUX client Prisma → 500 « Unknown argument expectedScenario » ; tué puis relancé (setsid)
+- E2E navigateur complet : login → /admin/nouveau → import du JSON d'exemple → « Import réussi », Lecture du match + Scénario attendu remplis avec l'exemple Alavés exact (captures shot-formulaire-2-champs.png, shot-scenario-attendu-form.png) → publication → page publique 200 affiche LECTURE DU MATCH puis SCÉNARIO ATTENDU (capture shot-page-publique.png) → DELETE nettoyage ; E2E API : POST 201 + expectedScenario, page publique, PATCH champ seul, DELETE ; /notre-approche vérifiée (shot-notre-approche.png)
+- Miroir : scripts/feature-src/scenario-attendu/ (2 schémas, pick-form, 2 routes API, admin-edit-page, site-pick-detail-page, json-import.ts/.tsx, notre-approche-page, 01/03 SQL, e2e-api.sh, e2e-payload.json, test-scenario-import.ts, captures) ; scripts/build-zip.sh créé (packaging répétable)
+- ZIP régénéré : NODE47-source-code.zip 207 fichiers 1,6 Mo (scripts/ de dev exclu de l'archive, source complète + kit déploiement) ; 03-ajout-scenario-attendu.sql copié à part dans download/ pour exécution directe dans Supabase
+
+Stage Summary:
+- « Lecture du match » et « Scénario attendu » sont deux champs distincts partout : admin (création + édition), API, page publique, import JSON (alias FR + limites 500/250) et prompt IA v2
+- L'utilisateur doit : (1) exécuter deploiement/03-ajout-scenario-attendu.sql dans Supabase SQL Editor (1 fois, sans risque), (2) redéposer le ZIP sur GitHub pour redéployer Netlify, (3) utiliser le prompt v2 pour générer les JSON avec les 2 champs
+- Les analyses existantes gardent « Scénario attendu » vide (section masquée) jusqu'à leur réédition

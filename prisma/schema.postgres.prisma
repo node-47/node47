@@ -27,9 +27,7 @@ model Pick {
   matchName           String
   matchDate           DateTime
   // Analyse (visible côté public sous forme de résumés uniquement)
-  // scenarioSummary   = « Lecture du match » (contexte factuel : classements, forme, enjeux)
-  // expectedScenario  = « Scénario attendu » (déroulement projeté : résultat + comment)
-  scenarioSummary     String    @default("")
+  // expectedScenario = « Scénario attendu » (déroulement projeté : résultat + comment)
   expectedScenario    String    @default("")
   keyPoints           String    @default("[]") // JSON string[] — arguments clés de convergence
   keyStats            String    @default("[]") // JSON {label, value, detail?}[]
